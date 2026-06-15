@@ -34,3 +34,7 @@ lerna-debug.log*
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Windows reserved file names
+nul
+backend/nul
