@@ -1,53 +1,122 @@
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import DamkarMarkers from './DamkarMarkers';
-import CoverageLayer from './CoverageLayer';
-import BlankSpotLayer from './BlankSpotLayer';
-import RekomendasiMarkers from './RekomendasiMarkers';
-import JalanLayer from './JalanLayer';
+import { useEffect, useRef } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import DamkarMarkers from "./DamkarMarkers";
+import CoverageLayer from "./CoverageLayer";
+import BlankSpotLayer from "./BlankSpotLayer";
+import RekomendasiMarkers from "./RekomendasiMarkers";
+import JalanLayer from "./JalanLayer";
 
-// Component to handle auto zoom and pan on searched pos damkar
+// Handle auto zoom on SearchBox selection (legacy)
 const ChangeView = ({ selectedPos }) => {
   const map = useMap();
   useEffect(() => {
     if (selectedPos) {
-      map.setView([selectedPos.lat, selectedPos.lng], 14, {
+      map.flyTo([selectedPos.lat, selectedPos.lng], 15, {
         animate: true,
-        duration: 1.2
+        duration: 1.2,
       });
     }
   }, [selectedPos, map]);
   return null;
 };
 
-const PadangMap = ({ layers, radius, selectedPos, refresh, theme }) => {
-  // Center coordinate Kota Padang
+// Handle flyTo for Damkar or Rekomendasi selection from sidebar
+const FlyToHandler = ({ damkarCoords, rekomendasiCoords }) => {
+  const map = useMap();
+  const prevDamkar = useRef(null);
+  const prevRekomendasi = useRef(null);
+
+  useEffect(() => {
+    if (
+      damkarCoords &&
+      (prevDamkar.current?.lat !== damkarCoords.lat ||
+        prevDamkar.current?.lng !== damkarCoords.lng)
+    ) {
+      prevDamkar.current = damkarCoords;
+      map.flyTo([damkarCoords.lat, damkarCoords.lng], 15, {
+        animate: true,
+        duration: 1.0,
+      });
+    }
+  }, [damkarCoords, map]);
+
+  useEffect(() => {
+    if (
+      rekomendasiCoords &&
+      (prevRekomendasi.current?.lat !== rekomendasiCoords.lat ||
+        prevRekomendasi.current?.lng !== rekomendasiCoords.lng)
+    ) {
+      prevRekomendasi.current = rekomendasiCoords;
+      map.flyTo([rekomendasiCoords.lat, rekomendasiCoords.lng], 14, {
+        animate: true,
+        duration: 1.0,
+      });
+    }
+  }, [rekomendasiCoords, map]);
+
+  return null;
+};
+
+const PadangMap = ({
+  layers,
+  radius,
+  selectedPos,
+  refresh,
+  theme,
+  selectedDamkarId,
+  selectedDamkarCoords,
+  onDamkarMarkerClick,
+  selectedRekomendasiId,
+  selectedRekomendasiCoords,
+  onRekomendasiMarkerClick,
+}) => {
   const center = [-0.9492, 100.3543];
 
   return (
-    <div style={{ height: '100%', width: '100%', position: 'relative' }}>
+    <div style={{ height: "100%", width: "100%", position: "relative" }}>
       <MapContainer
         center={center}
         zoom={12}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
-          key={theme === 'light' ? 'light-map' : 'dark-map'}
-          url={theme === 'light' 
-            ? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          key={theme === "light" ? "light-map" : "dark-map"}
+          url={
+            theme === "light"
+              ? "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           }
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
         {layers.jalan && <JalanLayer />}
         {layers.coverage && <CoverageLayer radius={radius} />}
         {layers.blankspot && <BlankSpotLayer radius={radius} />}
-        {layers.damkar && <DamkarMarkers selectedPos={selectedPos} refresh={refresh} />}
-        {layers.rekomendasi && <RekomendasiMarkers refresh={refresh} />}
-        
-        {/* Dynamic Zooming on Search Selection */}
+        {layers.damkar && (
+          <DamkarMarkers
+            selectedDamkarId={selectedDamkarId}
+            onMarkerClick={onDamkarMarkerClick}
+            refresh={refresh}
+            radius={radius}
+          />
+        )}
+        {layers.rekomendasi && (
+          <RekomendasiMarkers
+            refresh={refresh}
+            radius={radius}
+            selectedRekomendasiId={selectedRekomendasiId}
+            onMarkerClick={onRekomendasiMarkerClick}
+          />
+        )}
+
+        {/* Legacy SearchBox flyTo */}
         <ChangeView selectedPos={selectedPos} />
+
+        {/* Sidebar-driven flyTo */}
+        <FlyToHandler
+          damkarCoords={selectedDamkarCoords}
+          rekomendasiCoords={selectedRekomendasiCoords}
+        />
       </MapContainer>
     </div>
   );

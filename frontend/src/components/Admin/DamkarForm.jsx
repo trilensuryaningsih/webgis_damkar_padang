@@ -1,35 +1,111 @@
-import { useState, useEffect } from 'react';
-import { createDamkar, updateDamkar } from '../../services/api';
-import { IconEdit, IconPlus } from '../Icons';
+import { useState, useEffect } from "react";
+import { createDamkar, updateDamkar } from "../../services/api";
+import { IconEdit, IconPlus } from "../Icons";
+
+const Toast = ({ message, type, onDismiss }) => {
+  const bg =
+    type === "success"
+      ? "linear-gradient(135deg, #38a169, #2f855a)"
+      : "linear-gradient(135deg, #e53e3e, #c53030)";
+
+  return (
+    <div
+      style={{
+        background: bg,
+        borderRadius: "8px",
+        padding: "10px 14px",
+        color: "#fff",
+        fontSize: "13px",
+        marginBottom: "12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "10px",
+        lineHeight: "1.4",
+      }}
+    >
+      <span>{message}</span>
+      <button
+        onClick={onDismiss}
+        style={{
+          background: "none",
+          border: "none",
+          color: "#fff",
+          cursor: "pointer",
+          fontSize: "16px",
+          lineHeight: 1,
+          padding: "0 2px",
+          opacity: 0.8,
+          flexShrink: 0,
+        }}
+        aria-label="Tutup notifikasi"
+      >
+        ×
+      </button>
+    </div>
+  );
+};
 
 const DamkarForm = ({ editData, onSuccess, onCancel }) => {
   const [form, setForm] = useState({
-    nama_lokasi: '', no_pos: '', lat: '', lng: '', google_maps_li: ''
+    nama_lokasi: "",
+    no_pos: "",
+    lat: "",
+    lng: "",
+    google_maps_link: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState(null); // { message, type }
 
   useEffect(() => {
     if (editData) {
       setForm({
-        nama_lokasi: editData.nama_lokasi || '',
-        no_pos: editData.no_pos || '',
-        lat: editData.lat || '',
-        lng: editData.lng || '',
-        google_maps_li: editData.google_maps_li || ''
+        nama_lokasi: editData.nama_lokasi || "",
+        no_pos: editData.no_pos || "",
+        lat: editData.lat || "",
+        lng: editData.lng || "",
+        google_maps_link: editData.google_maps_link || "",
       });
     } else {
-      setForm({ nama_lokasi: '', no_pos: '', lat: '', lng: '', google_maps_li: '' });
+      setForm({
+        nama_lokasi: "",
+        no_pos: "",
+        lat: "",
+        lng: "",
+        google_maps_link: "",
+      });
     }
+    // Bersihkan toast saat form berganti mode (tambah/edit)
+    setToast(null);
   }, [editData]);
 
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nama_lokasi || !form.no_pos || !form.lat || !form.lng) {
-      alert('Nama lokasi, nomor pos, latitude, dan longitude wajib diisi.');
+
+    // Validasi manual — tampil sebagai toast, bukan alert
+    if (!form.nama_lokasi.trim()) {
+      showToast("Nama lokasi wajib diisi.", "error");
+      return;
+    }
+    if (!form.no_pos) {
+      showToast("Nomor pos wajib diisi.", "error");
+      return;
+    }
+    if (!form.lat || isNaN(Number(form.lat))) {
+      showToast("Latitude wajib diisi dan harus berupa angka.", "error");
+      return;
+    }
+    if (!form.lng || isNaN(Number(form.lng))) {
+      showToast("Longitude wajib diisi dan harus berupa angka.", "error");
       return;
     }
 
@@ -37,14 +113,17 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
     try {
       if (editData) {
         await updateDamkar(editData.id, form);
-        alert('Pos damkar berhasil diperbarui.');
+        showToast("Pos damkar berhasil diperbarui.", "success");
       } else {
         await createDamkar(form);
-        alert('Pos damkar baru berhasil ditambahkan.');
+        showToast("Pos damkar baru berhasil ditambahkan.", "success");
       }
-      onSuccess();
+      // Beri waktu agar toast sempat terlihat sebelum onSuccess menutup form
+      setTimeout(() => onSuccess(), 1200);
     } catch (err) {
-      alert('Gagal menyimpan pos damkar: ' + err.message);
+      const msg =
+        err?.response?.data?.message || err.message || "Terjadi kesalahan.";
+      showToast(`Gagal menyimpan pos damkar: ${msg}`, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -52,10 +131,29 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="form-card">
-      <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '700', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <h3
+        style={{
+          margin: "0 0 16px",
+          fontSize: "16px",
+          fontWeight: "700",
+          color: "var(--secondary)",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
         {editData ? <IconEdit size={16} /> : <IconPlus size={16} />}
-        <span>{editData ? 'Edit Pos Damkar' : 'Tambah Pos Damkar Baru'}</span>
+        <span>{editData ? "Edit Pos Damkar" : "Tambah Pos Damkar Baru"}</span>
       </h3>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
 
       <div className="form-grid">
         <div className="form-group">
@@ -67,7 +165,6 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
             onChange={handleChange}
             placeholder="Contoh: Pos Damkar Padang Selatan"
             className="form-input"
-            required
           />
         </div>
 
@@ -80,7 +177,6 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
             onChange={handleChange}
             placeholder="Contoh: 8"
             className="form-input"
-            required
           />
         </div>
 
@@ -94,7 +190,6 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
             onChange={handleChange}
             placeholder="Contoh: -0.9492"
             className="form-input"
-            required
           />
         </div>
 
@@ -108,17 +203,16 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
             onChange={handleChange}
             placeholder="Contoh: 100.3543"
             className="form-input"
-            required
           />
         </div>
       </div>
 
-      <div className="form-group" style={{ marginTop: '16px' }}>
+      <div className="form-group" style={{ marginTop: "16px" }}>
         <label className="form-label">Link Google Maps (Opsional)</label>
         <input
           type="url"
-          name="google_maps_li"
-          value={form.google_maps_li}
+          name="google_maps_link"
+          value={form.google_maps_link}
           onChange={handleChange}
           placeholder="https://maps.google.com/..."
           className="form-input"
@@ -126,16 +220,20 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
       </div>
 
       <div className="form-actions">
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           className="btn btn-primary"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Menyimpan...' : editData ? 'Simpan Perubahan' : 'Tambah Pos'}
+          {isSubmitting
+            ? "Menyimpan..."
+            : editData
+              ? "Simpan Perubahan"
+              : "Tambah Pos"}
         </button>
-        <button 
-          type="button" 
-          onClick={onCancel} 
+        <button
+          type="button"
+          onClick={onCancel}
           className="btn btn-secondary"
           disabled={isSubmitting}
         >
