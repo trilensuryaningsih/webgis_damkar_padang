@@ -21,7 +21,7 @@ function App() {
   };
 
   return (
-    <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
       <nav className="app-navbar">
         <div className="brand">

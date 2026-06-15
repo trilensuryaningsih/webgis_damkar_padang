@@ -6,6 +6,8 @@ import CoverageLayer from "./CoverageLayer";
 import BlankSpotLayer from "./BlankSpotLayer";
 import RekomendasiMarkers from "./RekomendasiMarkers";
 import JalanLayer from "./JalanLayer";
+import NavigationLayer from "./NavigationLayer";
+import MapControls from "./MapControls";
 
 // Handle auto zoom on SearchBox selection (legacy)
 const ChangeView = ({ selectedPos }) => {
@@ -67,9 +69,22 @@ const PadangMap = ({
   selectedDamkarId,
   selectedDamkarCoords,
   onDamkarMarkerClick,
+  routeDamkarId,
+  onDamkarRouteRequest,
   selectedRekomendasiId,
   selectedRekomendasiCoords,
   onRekomendasiMarkerClick,
+  userLocation,
+  route,
+  onLocate,
+  locating,
+  onRekomendasiRouteRequest,
+  onRouteCancel,
+  routing,
+  routeMode,
+  routeOriginKey,
+  onSetRouteOrigin,
+  onPointClick,
 }) => {
   const center = [-0.9492, 100.3543];
 
@@ -78,6 +93,7 @@ const PadangMap = ({
       <MapContainer
         center={center}
         zoom={12}
+        zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
@@ -90,12 +106,20 @@ const PadangMap = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
         {layers.jalan && <JalanLayer />}
-        {layers.coverage && <CoverageLayer radius={radius} />}
+        {layers.damkar && <CoverageLayer radius={radius} />}
         {layers.blankspot && <BlankSpotLayer radius={radius} />}
         {layers.damkar && (
           <DamkarMarkers
             selectedDamkarId={selectedDamkarId}
+            routeDamkarId={routeDamkarId}
             onMarkerClick={onDamkarMarkerClick}
+            onRouteRequest={onDamkarRouteRequest}
+            onRouteCancel={onRouteCancel}
+            routing={routing}
+            routeActive={routeMode === "gps-to-damkar"}
+            routeOriginKey={routeOriginKey}
+            onSetRouteOrigin={onSetRouteOrigin}
+            onPointClick={onPointClick}
             refresh={refresh}
             radius={radius}
           />
@@ -106,8 +130,17 @@ const PadangMap = ({
             radius={radius}
             selectedRekomendasiId={selectedRekomendasiId}
             onMarkerClick={onRekomendasiMarkerClick}
+            onRouteRequest={onRekomendasiRouteRequest}
+            onRouteCancel={onRouteCancel}
+            routing={routing}
+            routeActive={routeMode === "gps-to-rekomendasi"}
+            routeOriginKey={routeOriginKey}
+            onSetRouteOrigin={onSetRouteOrigin}
+            onPointClick={onPointClick}
           />
         )}
+        <NavigationLayer userLocation={userLocation} route={route} />
+        <MapControls onLocate={onLocate} locating={locating} />
 
         {/* Legacy SearchBox flyTo */}
         <ChangeView selectedPos={selectedPos} />

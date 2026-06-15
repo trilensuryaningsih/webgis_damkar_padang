@@ -6,7 +6,9 @@ const RadiusControl = ({ radius, onRadiusChange }) => {
       {/* Section Header */}
       <div className="sidebar-section-header sidebar-section-header--static">
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <span className="section-icon section-icon--blue">📡</span>
+          <span className="section-icon section-icon--blue">
+            <IconAntenna size={16} />
+          </span>
           <span className="sidebar-title-text">Radius Layanan</span>
         </div>
         <span className="radius-pill">{(radius / 1000).toFixed(1)} km</span>

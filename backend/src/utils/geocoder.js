@@ -3,13 +3,15 @@ const path = require('path');
 const https = require('https');
 const pool = require('../config/db');
 
-const cachePath = path.join(__dirname, '../config/geocoding_cache.json');
+const legacyCachePath = path.join(__dirname, '../config/geocoding_cache.json');
+const cachePath = path.join(__dirname, '../config/geocoding_cache.data');
 let cache = {};
 
 // Load cache file on start
 try {
-  if (fs.existsSync(cachePath)) {
-    cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+  const sourcePath = fs.existsSync(cachePath) ? cachePath : legacyCachePath;
+  if (fs.existsSync(sourcePath)) {
+    cache = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
   }
 } catch (err) {
   console.error('Failed to load geocoding cache:', err);

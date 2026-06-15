@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import { getRekomendasi } from "../../services/api";
+import { IconClose, IconNavigation, IconPin } from "../Icons";
 
 const createNumberedIcon = (number, isSelected = false) => {
   const size = isSelected ? 34 : 26;
@@ -39,15 +40,39 @@ const RekomendasiMarkers = ({
   radius = 3000,
   selectedRekomendasiId,
   onMarkerClick,
+  onRouteRequest,
+  onRouteCancel,
+  routing,
+  routeActive,
+  routeOriginKey,
+  onSetRouteOrigin,
+  onPointClick,
 }) => {
   const [data, setData] = useState(null);
   const markerRefs = useRef({});
 
   useEffect(() => {
-    setData(null);
-    getRekomendasi(radius)
-      .then((res) => setData(res.data))
-      .catch((err) => console.error("Error fetching recommendations:", err));
+    let cancelled = false;
+
+    const loadRecommendations = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setData(null);
+      try {
+        const res = await getRekomendasi(radius);
+        if (!cancelled) setData(res.data);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error fetching recommendations:", err);
+        }
+      }
+    };
+
+    loadRecommendations();
+    return () => {
+      cancelled = true;
+    };
   }, [refresh, radius]);
 
   useEffect(() => {
@@ -63,12 +88,17 @@ const RekomendasiMarkers = ({
   return data.features.map((feature) => {
     const [lng, lat] = feature.geometry.coordinates;
     const p = feature.properties;
-    const isSelected = selectedRekomendasiId === p.id;
+    const isRouteOrigin = routeOriginKey === `rekomendasi:${p.id}`;
+    const isSelected = selectedRekomendasiId === p.id || isRouteOrigin;
+    const hasActiveRoute = routeActive && selectedRekomendasiId === p.id;
     const kontribusi = Number(p.kontribusi_km2 ?? p.luas_km2) || 0;
     const persenKontribusi = Number(p.persen_kontribusi) || 0;
     const blankSebelum = Number(p.luas_blankspot_sebelum_km2) || 0;
     const blankSesudah = Number(p.luas_blankspot_sesudah_km2) || 0;
     const blankTeratasi = parseFloat((blankSebelum - blankSesudah).toFixed(2));
+    const jarakPosTerdekat = Number(p.jarak_pos_terdekat_km) || 0;
+    const jarakPermukiman = Number(p.jarak_permukiman_km) || 0;
+    const jarakJalan = Number(p.jarak_jalan_km) || 0;
 
     return (
       <Marker
@@ -82,6 +112,7 @@ const RekomendasiMarkers = ({
         eventHandlers={{
           click: () => {
             if (onMarkerClick) onMarkerClick(feature);
+            onPointClick?.(feature, "rekomendasi");
           },
         }}
       >
@@ -110,7 +141,8 @@ const RekomendasiMarkers = ({
                   fontWeight: "800",
                 }}
               >
-                📍 #{p.pos_ke || p.id}
+                <IconPin size={12} />
+                Prioritas {p.pos_ke || p.id}
               </span>
               {p.nama}
             </h4>
@@ -163,6 +195,62 @@ const RekomendasiMarkers = ({
                 </span>
                 <span>{(radius / 1000).toFixed(1)} km</span>
               </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>
+                  Jarak ke pos terdekat:
+                </span>
+                <strong style={{ color: "#f59e0b" }}>
+                  {jarakPosTerdekat.toFixed(2)} km
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>
+                  Jarak ke permukiman:
+                </span>
+                <strong style={{ color: "#10b981" }}>
+                  {jarakPermukiman.toFixed(2)} km
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-muted)" }}>
+                  Jarak ke jalan:
+                </span>
+                <span>{jarakJalan.toFixed(2)} km</span>
+              </div>
+              <button
+                type="button"
+                className={`popup-route-button ${
+                  hasActiveRoute ? "popup-route-button--cancel" : ""
+                }`}
+                onClick={() =>
+                  hasActiveRoute
+                    ? onRouteCancel?.()
+                    : onRouteRequest?.(feature)
+                }
+                disabled={routing}
+              >
+                {hasActiveRoute ? (
+                  <IconClose size={14} />
+                ) : (
+                  <IconNavigation size={14} />
+                )}
+                {routing && isSelected
+                  ? "Mencari rute..."
+                  : hasActiveRoute
+                    ? "Batalkan Rute"
+                    : "Lihat Rute dari Lokasi Saya"}
+              </button>
+              <button
+                type="button"
+                className={`popup-route-button ${
+                  isRouteOrigin ? "popup-route-button--selected" : ""
+                }`}
+                onClick={() => onSetRouteOrigin?.(feature, "rekomendasi")}
+                disabled={routing}
+              >
+                <IconPin size={14} />
+                {isRouteOrigin ? "Batalkan Titik Awal" : "Jadikan Titik Awal"}
+              </button>
             </div>
           </div>
         </Popup>

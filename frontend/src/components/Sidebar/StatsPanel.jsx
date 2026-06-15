@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getStats, getRekomendasi } from "../../services/api";
+import { IconStats } from "../Icons";
 
 const StatsPanel = ({ refresh, radius = 3000 }) => {
   const [stats, setStats] = useState(null);
@@ -24,7 +25,9 @@ const StatsPanel = ({ refresh, radius = 3000 }) => {
       {/* Section Header */}
       <div className="sidebar-section-header sidebar-section-header--static">
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-          <span className="section-icon section-icon--amber">📊</span>
+          <span className="section-icon section-icon--amber">
+            <IconStats size={16} />
+          </span>
           <span className="sidebar-title-text">Ringkasan Analisis</span>
         </div>
       </div>

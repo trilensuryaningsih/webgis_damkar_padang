@@ -1,5 +1,3 @@
-import React from 'react';
-
 // Common icon wrapper for consistent sizing and styling
 const SvgWrapper = ({ children, size = 18, color = 'currentColor', className = '' }) => (
   <svg
@@ -30,6 +28,22 @@ export const IconMap = (props) => (
     <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
     <line x1="9" y1="3" x2="9" y2="18" />
     <line x1="15" y1="6" x2="15" y2="21" />
+  </SvgWrapper>
+);
+
+export const IconLayers = (props) => (
+  <SvgWrapper {...props}>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 12 12 17 22 12" />
+    <polyline points="2 17 12 22 22 17" />
+  </SvgWrapper>
+);
+
+export const IconCoverage = (props) => (
+  <SvgWrapper {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="7" strokeDasharray="2 2" />
+    <circle cx="12" cy="12" r="10" strokeDasharray="3 3" />
   </SvgWrapper>
 );
 
@@ -67,6 +81,51 @@ export const IconPin = (props) => (
   <SvgWrapper {...props}>
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
     <circle cx="12" cy="10" r="3" />
+  </SvgWrapper>
+);
+
+export const IconLocate = (props) => (
+  <SvgWrapper {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="8" />
+    <line x1="12" y1="2" x2="12" y2="5" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+    <line x1="2" y1="12" x2="5" y2="12" />
+    <line x1="19" y1="12" x2="22" y2="12" />
+  </SvgWrapper>
+);
+
+export const IconNavigation = (props) => (
+  <SvgWrapper {...props}>
+    <polygon points="3 11 22 2 13 21 11 13 3 11" />
+  </SvgWrapper>
+);
+
+export const IconWalk = (props) => (
+  <SvgWrapper {...props}>
+    <circle cx="13" cy="4" r="2" />
+    <path d="m10 22 1-6-3-3 2-5 4 3 3 1" />
+    <path d="m16 22-3-6 1-5" />
+    <path d="m6 22 3-5" />
+  </SvgWrapper>
+);
+
+export const IconMotorcycle = (props) => (
+  <SvgWrapper {...props}>
+    <circle cx="5" cy="17" r="3" />
+    <circle cx="19" cy="17" r="3" />
+    <path d="M8 17h4l3-6h3" />
+    <path d="m10 17-3-7h4l3 3" />
+    <path d="M16 8h3" />
+  </SvgWrapper>
+);
+
+export const IconCar = (props) => (
+  <SvgWrapper {...props}>
+    <path d="m5 17-1-5 2-5h12l2 5-1 5" />
+    <path d="M5 12h14" />
+    <circle cx="7" cy="17" r="2" />
+    <circle cx="17" cy="17" r="2" />
   </SvgWrapper>
 );
 
@@ -135,6 +194,53 @@ export const IconFiretruck = (props) => (
     <path d="M14 10h4v2h-4z" />
     <circle cx="11" cy="4" r="1" />
   </SvgWrapper>
+);
+
+export const IconFireStation = (props) => (
+  <SvgWrapper {...props}>
+    <path d="M3 10 12 4l9 6" />
+    <path d="M5 9v11h14V9" />
+    <path d="M8 20v-7h8v7" />
+    <path d="M8 16h8" />
+    <path d="M10 4V2h4v2" />
+    <path d="M9 10h6" />
+  </SvgWrapper>
+);
+
+export const IconDamkarMark = ({ size = 28, className = '' }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 32 32"
+    className={className}
+    aria-hidden="true"
+    style={{ display: 'block', flexShrink: 0 }}
+  >
+    <defs>
+      <linearGradient id="damkar-mark-bg" x1="5" y1="4" x2="27" y2="28">
+        <stop offset="0" stopColor="#f87171" />
+        <stop offset="1" stopColor="#b91c1c" />
+      </linearGradient>
+    </defs>
+    <rect width="32" height="32" rx="9" fill="url(#damkar-mark-bg)" />
+    <path d="M7 15.5h12.5v7H7zM19.5 17h4.2l2.3 2.5v3h-6.5z" fill="#fff" />
+    <path
+      d="M9.5 15.5v-3h7v3M11 12.5V10h4v2.5"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M22 17v2.5h4" fill="none" stroke="#fecaca" strokeWidth="1.4" />
+    <circle cx="11" cy="23" r="2.25" fill="#1f2937" stroke="#fff" strokeWidth="1.2" />
+    <circle cx="22.5" cy="23" r="2.25" fill="#1f2937" stroke="#fff" strokeWidth="1.2" />
+    <path
+      d="M12 8.5c0-1.3 1.1-2 2-3.3.2 1.1 1 1.7 1.5 2.5.8 1.4-.1 2.8-1.6 2.8A1.9 1.9 0 0 1 12 8.5Z"
+      fill="#fde68a"
+    />
+  </svg>
 );
 
 export const IconExternalLink = (props) => (

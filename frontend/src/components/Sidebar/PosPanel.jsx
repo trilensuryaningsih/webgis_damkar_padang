@@ -1,32 +1,58 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getDamkar } from "../../services/api";
+import {
+  IconChevronDown,
+  IconExternalLink,
+  IconFireStation,
+} from "../Icons";
 
-const PosPanel = ({ refresh, radius = 3000, selectedDamkarId, onDamkarSelect }) => {
+const PosPanel = ({
+  refresh,
+  radius = 3000,
+  selectedDamkarId,
+  onDamkarSelect,
+}) => {
   const [data, setData] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
   const listRef = useRef(null);
   const itemRefs = useRef({});
 
   useEffect(() => {
-    setLoading(true);
-    getDamkar(radius)
-      .then((res) => {
+    let cancelled = false;
+
+    const loadDamkar = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setLoading(true);
+      try {
+        const res = await getDamkar(radius);
+        if (cancelled) return;
         setData(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
+        if (cancelled) return;
         console.error("Error fetching pos damkar:", err);
-        setLoading(false);
-      });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadDamkar();
+    return () => {
+      cancelled = true;
+    };
   }, [refresh, radius]);
 
-  // Auto-scroll to active item when selectedDamkarId changes (map → sidebar)
   useEffect(() => {
-    if (selectedDamkarId && itemRefs.current[selectedDamkarId] && listRef.current) {
-      // Expand if collapsed
+    if (
+      selectedDamkarId &&
+      itemRefs.current[selectedDamkarId] &&
+      listRef.current
+    ) {
       setIsCollapsed(false);
-      // Scroll item into view
+      setExpandedId(selectedDamkarId);
       setTimeout(() => {
         itemRefs.current[selectedDamkarId]?.scrollIntoView({
           behavior: "smooth",
@@ -38,7 +64,9 @@ const PosPanel = ({ refresh, radius = 3000, selectedDamkarId, onDamkarSelect }) 
 
   const handleItemClick = useCallback(
     (feature) => {
-      if (onDamkarSelect) onDamkarSelect(feature);
+      const id = feature.properties.id;
+      setExpandedId((current) => (current === id ? null : id));
+      onDamkarSelect?.(feature);
     },
     [onDamkarSelect]
   );
@@ -47,14 +75,15 @@ const PosPanel = ({ refresh, radius = 3000, selectedDamkarId, onDamkarSelect }) 
 
   return (
     <div className="sidebar-section">
-      {/* Section Header */}
       <button
         className="sidebar-section-header"
-        onClick={() => setIsCollapsed((c) => !c)}
+        onClick={() => setIsCollapsed((current) => !current)}
         aria-expanded={!isCollapsed}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-          <span className="section-icon section-icon--red">🚒</span>
+        <div className="sidebar-section-title-group">
+          <span className="section-icon section-icon--red">
+            <IconFireStation size={17} />
+          </span>
           <span className="sidebar-title-text">Pos Damkar Saat Ini</span>
           {!loading && (
             <span className="section-badge section-badge--red">
@@ -62,20 +91,17 @@ const PosPanel = ({ refresh, radius = 3000, selectedDamkarId, onDamkarSelect }) 
             </span>
           )}
         </div>
-        <span
-          className="collapse-chevron"
-          style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
-        >
-          ▾
-        </span>
+        <IconChevronDown
+          size={14}
+          className={`collapse-chevron ${isCollapsed ? "is-collapsed" : ""}`}
+        />
       </button>
 
-      {/* Collapsible content */}
       <div className={`collapse-body ${isCollapsed ? "collapsed" : "expanded"}`}>
         {loading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="skeleton-card" />
+          <div className="sidebar-skeleton-list">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="skeleton-card" />
             ))}
           </div>
         ) : features.length === 0 ? (
@@ -93,83 +119,106 @@ const PosPanel = ({ refresh, radius = 3000, selectedDamkarId, onDamkarSelect }) 
                 kelurahan,
                 kecamatan,
                 area_km2,
-                persen_coverage
+                persen_coverage,
               } = feature.properties;
               const isActive = selectedDamkarId === id;
+              const isExpanded = expandedId === id;
 
               return (
                 <div
                   key={id}
-                  ref={(el) => {
-                    if (el) itemRefs.current[id] = el;
+                  ref={(element) => {
+                    if (element) itemRefs.current[id] = element;
                   }}
-                  className={`pos-card ${isActive ? "pos-card--active" : ""}`}
+                  className={`pos-card ${isActive ? "pos-card--active" : ""} ${
+                    isExpanded ? "pos-card--expanded" : ""
+                  }`}
                   onClick={() => handleItemClick(feature)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && handleItemClick(feature)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleItemClick(feature);
+                    }
+                  }}
                   aria-label={`Pos Damkar ${no_pos}: ${nama_lokasi}`}
-                  style={{ padding: "8px 10px", gap: "8px" }}
+                  aria-expanded={isExpanded}
                 >
-                  {/* Small Firetruck Icon */}
-                  <span style={{ fontSize: "14px", marginTop: "2px", flexShrink: 0 }}>🚒</span>
+                  <span className="pos-card-logo" aria-hidden="true">
+                    <IconFireStation size={19} />
+                  </span>
 
-                  {/* Content */}
-                  <div className="pos-card-content" style={{ gap: "2px" }}>
-                    <div className="pos-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <h4 className="pos-card-title" style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-white)" }}>
+                  <div className="pos-card-content">
+                    <div className="pos-card-header">
+                      <h4 className="pos-card-title">
                         {nama_lokasi} (Pos {no_pos})
                       </h4>
-                      <span className="pos-status-badge" style={{ fontSize: "9px", color: "var(--success)" }}>
-                        ● Aktif
-                      </span>
+                      <div className="pos-card-actions">
+                        <span className="pos-status-badge">Aktif</span>
+                        <IconChevronDown
+                          size={14}
+                          className={`card-detail-chevron ${
+                            isExpanded ? "card-detail-chevron--open" : ""
+                          }`}
+                        />
+                      </div>
                     </div>
 
-                    {/* Geocoded Address Details */}
-                    {alamat_lengkap && (
-                      <p className="pos-card-address" style={{ fontSize: "10.5px", color: "var(--text-main)", margin: "1px 0" }}>
-                        {alamat_lengkap}
-                      </p>
+                    <span className="card-detail-hint">
+                      {isExpanded ? "Tutup detail" : "Lihat detail"}
+                    </span>
+
+                    {isExpanded && (
+                      <div className="card-expanded-detail">
+                        {alamat_lengkap && (
+                          <p className="pos-card-address">{alamat_lengkap}</p>
+                        )}
+
+                        <div className="card-location-tags">
+                          <span>
+                            <strong>Kel:</strong> {kelurahan || "-"}
+                          </span>
+                          <span>
+                            <strong>Kec:</strong> {kecamatan || "-"}
+                          </span>
+                        </div>
+
+                        <div className="pos-card-meta">
+                          <span className="pos-meta-item">
+                            <span className="pos-meta-label">Radius</span>
+                            <span className="pos-meta-value pos-meta-value--blue">
+                              {(radius / 1000).toFixed(1)} km
+                            </span>
+                          </span>
+                          <span className="pos-meta-item">
+                            <span className="pos-meta-label">Cakupan</span>
+                            <span className="pos-meta-value">
+                              {area_km2
+                                ? `${area_km2.toFixed(2)} km2 (${persen_coverage.toFixed(2)}%)`
+                                : "-"}
+                            </span>
+                          </span>
+                          <span className="pos-meta-item">
+                            <span className="pos-meta-label">Koordinat</span>
+                            <span className="pos-meta-value pos-meta-value--mono">
+                              {lat.toFixed(5)}, {lng.toFixed(5)}
+                            </span>
+                          </span>
+                        </div>
+
+                        <a
+                          href={`https://www.google.com/maps?q=${lat},${lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="pos-maps-link"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <IconExternalLink size={12} />
+                          Lihat di Google Maps
+                        </a>
+                      </div>
                     )}
-                    
-                    <div style={{ display: "flex", gap: "8px", fontSize: "10px", color: "var(--text-muted)", flexWrap: "wrap", margin: "1px 0" }}>
-                      <span><strong>Kel:</strong> {kelurahan || "—"}</span>
-                      <span><strong>Kec:</strong> {kecamatan || "—"}</span>
-                    </div>
-
-                    {/* Coordinates & Service Radius */}
-                    <div className="pos-card-meta" style={{ display: "flex", gap: "10px", marginTop: "2px", fontSize: "10px" }}>
-                      <span className="pos-meta-item">
-                        <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Radius</span>
-                        <span className="pos-meta-value pos-meta-value--blue" style={{ color: "var(--accent)", fontWeight: "600" }}>
-                          {(radius / 1000).toFixed(1)} km
-                        </span>
-                      </span>
-                      <span className="pos-meta-item">
-                        <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cakupan</span>
-                        <span className="pos-meta-value" style={{ fontWeight: "600", color: "var(--text-main)" }}>
-                          {area_km2 ? `${area_km2.toFixed(2)} km² (${persen_coverage.toFixed(2)}%)` : "—"}
-                        </span>
-                      </span>
-                      <span className="pos-meta-item">
-                        <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Koordinat</span>
-                        <span className="pos-meta-value pos-meta-value--mono" style={{ fontFamily: "monospace", fontSize: "9px" }}>
-                          {lat.toFixed(5)}, {lng.toFixed(5)}
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Google Maps link button format matching requirement */}
-                    <a
-                      href={`https://www.google.com/maps?q=${lat},${lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="pos-maps-link"
-                      style={{ fontSize: "9.5px", marginTop: "6px" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      🗺 Lihat di Google Maps
-                    </a>
                   </div>
                 </div>
               );

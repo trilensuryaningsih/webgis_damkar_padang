@@ -2,7 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import { getDamkar } from "../../services/api";
-import { IconFiretruck, IconExternalLink } from "../Icons";
+import {
+  IconClose,
+  IconExternalLink,
+  IconFireStation,
+  IconNavigation,
+  IconPin,
+} from "../Icons";
 
 // Normal pin icon
 const createDamkarIcon = (isSelected = false) => {
@@ -41,7 +47,19 @@ const createDamkarIcon = (isSelected = false) => {
   });
 };
 
-const MarkerItem = ({ feature, selectedDamkarId, onMarkerClick }) => {
+const MarkerItem = ({
+  feature,
+  selectedDamkarId,
+  routeDamkarId,
+  onMarkerClick,
+  onRouteRequest,
+  onRouteCancel,
+  routing,
+  routeActive,
+  routeOriginKey,
+  onSetRouteOrigin,
+  onPointClick,
+}) => {
   const [lng, lat] = feature.geometry.coordinates;
   const {
     id,
@@ -49,14 +67,14 @@ const MarkerItem = ({ feature, selectedDamkarId, onMarkerClick }) => {
     nama_lokasi,
     google_maps_link,
     alamat_lengkap,
-    kelurahan,
-    kecamatan,
     area_km2,
     persen_coverage,
-    radius_m
   } = feature.properties;
   const markerRef = useRef(null);
-  const isSelected = selectedDamkarId === id;
+  const isRouteDamkar = routeDamkarId === id;
+  const hasActiveRoute = routeActive && isRouteDamkar;
+  const isRouteOrigin = routeOriginKey === `damkar:${id}`;
+  const isSelected = selectedDamkarId === id || isRouteDamkar || isRouteOrigin;
 
   useEffect(() => {
     if (isSelected && markerRef.current) {
@@ -75,6 +93,7 @@ const MarkerItem = ({ feature, selectedDamkarId, onMarkerClick }) => {
       eventHandlers={{
         click: () => {
           if (onMarkerClick) onMarkerClick(feature);
+          onPointClick?.(feature, "damkar");
         },
       }}
     >
@@ -104,7 +123,8 @@ const MarkerItem = ({ feature, selectedDamkarId, onMarkerClick }) => {
                 flexShrink: 0,
               }}
             >
-              🚒 Pos {no_pos}
+              <IconFireStation size={15} />
+              Pos {no_pos}
             </span>
             {nama_lokasi}
           </h4>
@@ -181,13 +201,58 @@ const MarkerItem = ({ feature, selectedDamkarId, onMarkerClick }) => {
               <IconExternalLink size={11} color="#3b82f6" /> Buka di Google Maps
             </a>
           )}
+          <button
+            type="button"
+            className={`popup-route-button ${
+              hasActiveRoute ? "popup-route-button--cancel" : ""
+            }`}
+            onClick={() =>
+              hasActiveRoute ? onRouteCancel?.() : onRouteRequest?.(feature)
+            }
+            disabled={routing}
+          >
+            {hasActiveRoute ? (
+              <IconClose size={14} />
+            ) : (
+              <IconNavigation size={14} />
+            )}
+            {routing && isRouteDamkar
+              ? "Mencari rute..."
+              : hasActiveRoute
+                ? "Batalkan Rute"
+                : "Lihat Rute dari Lokasi Saya"}
+          </button>
+          <button
+            type="button"
+            className={`popup-route-button ${
+              isRouteOrigin ? "popup-route-button--selected" : ""
+            }`}
+            onClick={() => onSetRouteOrigin?.(feature, "damkar")}
+            disabled={routing}
+          >
+            <IconPin size={14} />
+            {isRouteOrigin ? "Batalkan Titik Awal" : "Jadikan Titik Awal"}
+          </button>
         </div>
       </Popup>
     </Marker>
   );
 };
 
-const DamkarMarkers = ({ selectedDamkarId, onMarkerClick, refresh, radius = 3000 }) => {
+const DamkarMarkers = ({
+  selectedDamkarId,
+  routeDamkarId,
+  onMarkerClick,
+  onRouteRequest,
+  onRouteCancel,
+  routing,
+  routeActive,
+  routeOriginKey,
+  onSetRouteOrigin,
+  onPointClick,
+  refresh,
+  radius = 3000,
+}) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -205,7 +270,15 @@ const DamkarMarkers = ({ selectedDamkarId, onMarkerClick, refresh, radius = 3000
           key={feature.properties.id}
           feature={feature}
           selectedDamkarId={selectedDamkarId}
+          routeDamkarId={routeDamkarId}
           onMarkerClick={onMarkerClick}
+          onRouteRequest={onRouteRequest}
+          onRouteCancel={onRouteCancel}
+          routing={routing}
+          routeActive={routeActive}
+          routeOriginKey={routeOriginKey}
+          onSetRouteOrigin={onSetRouteOrigin}
+          onPointClick={onPointClick}
         />
       ))}
     </>

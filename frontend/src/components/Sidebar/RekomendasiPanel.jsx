@@ -1,5 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getRekomendasi } from "../../services/api";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconExternalLink,
+  IconPin,
+} from "../Icons";
 
 const RekomendasiPanel = ({
   refresh,
@@ -10,32 +16,56 @@ const RekomendasiPanel = ({
   const [data, setData] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
   const listRef = useRef(null);
   const itemRefs = useRef({});
 
   useEffect(() => {
-    setLoading(true);
-    setData(null);
-    getRekomendasi(radius)
-      .then((res) => {
+    let cancelled = false;
+
+    const loadRecommendations = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setLoading(true);
+      setData(null);
+      setError("");
+
+      try {
+        const res = await getRekomendasi(radius);
+        if (cancelled) return;
+
         const features = [...(res.data.features || [])].sort(
           (a, b) =>
             (a.properties.pos_ke || a.properties.id) -
             (b.properties.pos_ke || b.properties.id)
         );
         setData({ ...res.data, features });
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
+        if (cancelled) return;
+
         console.error("Error fetching recommendations:", err);
-        setLoading(false);
-      });
+        setError(
+          "Rekomendasi gagal dimuat. Pastikan backend berjalan, lalu coba lagi."
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadRecommendations();
+
+    return () => {
+      cancelled = true;
+    };
   }, [refresh, radius]);
 
   // Auto-scroll to active item when selectedRekomendasiId changes (map → sidebar)
   useEffect(() => {
     if (selectedRekomendasiId && itemRefs.current[selectedRekomendasiId] && listRef.current) {
       setIsCollapsed(false);
+      setExpandedId(selectedRekomendasiId);
       setTimeout(() => {
         itemRefs.current[selectedRekomendasiId]?.scrollIntoView({
           behavior: "smooth",
@@ -47,6 +77,8 @@ const RekomendasiPanel = ({
 
   const handleItemClick = useCallback(
     (feature) => {
+      const id = feature.properties.id;
+      setExpandedId((current) => (current === id ? null : id));
       if (onRekomendasiSelect) onRekomendasiSelect(feature);
     },
     [onRekomendasiSelect]
@@ -64,7 +96,9 @@ const RekomendasiPanel = ({
         aria-expanded={!isCollapsed}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-          <span className="section-icon section-icon--blue">📍</span>
+          <span className="section-icon section-icon--blue">
+            <IconPin size={16} />
+          </span>
           <span className="sidebar-title-text">Rekomendasi Pos Baru</span>
           {!loading && summary && (
             <span className="section-badge section-badge--blue">
@@ -88,9 +122,15 @@ const RekomendasiPanel = ({
               <div key={i} className="skeleton-card" />
             ))}
           </div>
-        ) : features.length === 0 ? (
+        ) : error ? (
+          <div className="empty-state">{error}</div>
+        ) : features.length === 0 && summary?.fully_covered ? (
           <div className="empty-state">
             Tidak ada rekomendasi pos baru (Wilayah sudah tercover sempurna).
+          </div>
+        ) : features.length === 0 ? (
+          <div className="empty-state">
+            Kandidat pos baru belum dapat dihitung untuk radius ini.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -138,9 +178,15 @@ const RekomendasiPanel = ({
                   </div>
                 </div>
 
+                <div className="priority-method-note">
+                  Prioritas mempertimbangkan kedekatan permukiman, tambahan
+                  cakupan, jarak dari pos lama, dan akses jalan.
+                </div>
+
                 {summary.fully_covered && (
                   <div className="summary-alert-success">
-                    ✓ Seluruh wilayah dapat tercover sempurna
+                    <IconCheck size={13} />
+                    Seluruh wilayah dapat tercover sempurna
                   </div>
                 )}
               </div>
@@ -148,10 +194,10 @@ const RekomendasiPanel = ({
 
             {/* Recommendations List */}
             <div className="rekomendasi-list-scroll" ref={listRef}>
-              {features.map((feature, index) => {
+              {features.map((feature) => {
                 const p = feature.properties;
-                const posKe = p.pos_ke || index + 1;
                 const isActive = selectedRekomendasiId === p.id;
+                const isExpanded = expandedId === p.id;
                 const skor = Math.min(
                   100,
                   Math.round(Number(p.skor_prioritas || 0) * 100)
@@ -161,6 +207,10 @@ const RekomendasiPanel = ({
                 const blankSebelum = Number(p.luas_blankspot_sebelum_km2) || 0;
                 const blankSesudah = Number(p.luas_blankspot_sesudah_km2) || 0;
                 const blankTeratasi = parseFloat((blankSebelum - blankSesudah).toFixed(2));
+                const jarakPosTerdekat =
+                  Number(p.jarak_pos_terdekat_km) || 0;
+                const jarakPermukiman = Number(p.jarak_permukiman_km) || 0;
+                const jarakJalan = Number(p.jarak_jalan_km) || 0;
                 const lat = Number(p.lat);
                 const lng = Number(p.lng);
 
@@ -172,103 +222,131 @@ const RekomendasiPanel = ({
                     }}
                     className={`rekomendasi-card-v2 ${
                       isActive ? "rekomendasi-card-v2--active" : ""
-                    }`}
+                    } ${isExpanded ? "rekomendasi-card-v2--expanded" : ""}`}
                     onClick={() => handleItemClick(feature)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && handleItemClick(feature)}
-                    style={{ padding: "8px 10px", gap: "8px" }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleItemClick(feature);
+                      }
+                    }}
+                    aria-expanded={isExpanded}
                   >
-                    {/* Small Location Marker Icon instead of big number box */}
-                    <span style={{ fontSize: "14px", marginTop: "2px", flexShrink: 0 }}>📍</span>
+                    <span className="rekomendasi-card-icon">
+                      <IconPin size={16} />
+                    </span>
 
                     {/* Content */}
                     <div className="rekomendasi-content" style={{ gap: "2px" }}>
-                      <div className="rekomendasi-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <h4 className="rekomendasi-card-title" style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-white)" }}>
+                      <div className="rekomendasi-card-header">
+                        <h4 className="rekomendasi-card-title">
                           {p.nama}
                         </h4>
-                        {isActive && (
-                          <span className="rekomendasi-active-dot" style={{ fontSize: "9px", color: "var(--success)" }}>
-                            ● Terpilih
-                          </span>
-                        )}
+                        <div className="pos-card-actions">
+                          {isActive && (
+                            <span className="rekomendasi-active-dot">Terpilih</span>
+                          )}
+                          <IconChevronDown
+                            size={14}
+                            className={`card-detail-chevron ${
+                              isExpanded ? "card-detail-chevron--open" : ""
+                            }`}
+                          />
+                        </div>
                       </div>
 
-                      {/* Address / Reverse Geocoded */}
-                      {p.alamat_lengkap && (
-                        <p className="rekomendasi-card-address" style={{ fontSize: "10.5px", color: "var(--text-main)", margin: "1px 0" }}>
-                          {p.alamat_lengkap}
-                        </p>
-                      )}
+                      <span className="card-detail-hint">
+                        {isExpanded ? "Tutup detail" : "Lihat detail"}
+                      </span>
 
-                      <div style={{ display: "flex", gap: "8px", fontSize: "10px", color: "var(--text-muted)", flexWrap: "wrap", margin: "1px 0" }}>
-                        <span><strong>Kel:</strong> {p.kelurahan || "—"}</span>
-                        <span><strong>Kec:</strong> {p.kecamatan || "—"}</span>
-                      </div>
+                      {isExpanded && (
+                        <div className="card-expanded-detail">
+                          {p.alamat_lengkap && (
+                            <p className="rekomendasi-card-address">
+                              {p.alamat_lengkap}
+                            </p>
+                          )}
 
-                      {/* Coverage Stats Grid */}
-                      <div className="rekomendasi-card-meta" style={{ display: "flex", gap: "10px", marginTop: "2px", fontSize: "10px" }}>
-                        <span className="pos-meta-item">
-                          <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>+ Coverage</span>
-                          <span style={{ fontWeight: "600", color: "var(--success)" }}>
-                            +{persenKontribusi.toFixed(1)}%
-                          </span>
-                        </span>
-                        <span className="pos-meta-item">
-                          <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Luas Tambahan</span>
-                          <span style={{ fontWeight: "600", color: "var(--text-main)" }}>
-                            {kontribusi.toFixed(2)} km²
-                          </span>
-                        </span>
-                        {blankTeratasi > 0 && (
-                          <span className="pos-meta-item">
-                            <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Blankspot Teratasi</span>
-                            <span style={{ fontWeight: "600", color: "var(--warning)" }}>
-                              {blankTeratasi.toFixed(2)} km²
+                          <div className="card-location-tags">
+                            <span><strong>Kel:</strong> {p.kelurahan || "-"}</span>
+                            <span><strong>Kec:</strong> {p.kecamatan || "-"}</span>
+                          </div>
+
+                          <div className="rekomendasi-card-meta">
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">+ Coverage</span>
+                              <span className="rekomendasi-value-success">
+                                +{persenKontribusi.toFixed(1)}%
+                              </span>
                             </span>
-                          </span>
-                        )}
-                      </div>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">Luas Tambahan</span>
+                              <span className="pos-meta-value">
+                                {kontribusi.toFixed(2)} km2
+                              </span>
+                            </span>
+                            {blankTeratasi > 0 && (
+                              <span className="pos-meta-item">
+                                <span className="pos-meta-label">Blankspot Teratasi</span>
+                                <span className="rekomendasi-value-warning">
+                                  {blankTeratasi.toFixed(2)} km2
+                                </span>
+                              </span>
+                            )}
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">
+                                Jarak Pos Terdekat
+                              </span>
+                              <span className="rekomendasi-value-warning">
+                                {jarakPosTerdekat.toFixed(2)} km
+                              </span>
+                            </span>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">
+                                Jarak Permukiman
+                              </span>
+                              <span className="rekomendasi-value-success">
+                                {jarakPermukiman.toFixed(2)} km
+                              </span>
+                            </span>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">
+                                Akses Jalan
+                              </span>
+                              <span className="pos-meta-value">
+                                {jarakJalan.toFixed(2)} km
+                              </span>
+                            </span>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">
+                                Skor Prioritas
+                              </span>
+                              <span className="rekomendasi-value-score">
+                                {skor}%
+                              </span>
+                            </span>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">Koordinat</span>
+                              <span className="pos-meta-value pos-meta-value--mono">
+                                {lat.toFixed(5)}, {lng.toFixed(5)}
+                              </span>
+                            </span>
+                          </div>
 
-                      <div className="rekomendasi-card-meta" style={{ display: "flex", gap: "10px", marginTop: "1px", fontSize: "10px" }}>
-                        <span className="pos-meta-item">
-                          <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Skor</span>
-                          <span style={{ fontWeight: "700", color: isActive ? "var(--success)" : "var(--accent)" }}>
-                            {skor}%
-                          </span>
-                        </span>
-                        <span className="pos-meta-item">
-                          <span className="pos-meta-label" style={{ fontSize: "8px", textTransform: "uppercase", color: "var(--text-muted)" }}>Koordinat</span>
-                          <span style={{ fontFamily: "monospace", fontSize: "9px" }}>
-                            {lat.toFixed(5)}, {lng.toFixed(5)}
-                          </span>
-                        </span>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
-                        <button
-                          className="pos-maps-link"
-                          style={{ fontSize: "9.5px", cursor: "pointer", border: "1px solid rgba(59,130,246,0.15)" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleItemClick(feature);
-                          }}
-                        >
-                          🔍 Lihat Lokasi
-                        </button>
-                        <a
-                          href={`https://www.google.com/maps?q=${lat},${lng}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="pos-maps-link"
-                          style={{ fontSize: "9.5px" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          🗺 Buka di Google Maps
-                        </a>
-                      </div>
+                          <a
+                            href={`https://www.google.com/maps?q=${lat},${lng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="pos-maps-link"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <IconExternalLink size={12} />
+                            Buka di Google Maps
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

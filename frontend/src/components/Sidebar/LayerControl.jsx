@@ -1,43 +1,70 @@
-import { IconMap, IconFire, IconCheck, IconBlankSpot, IconPin, IconRoad, IconAntenna } from '../Icons';
+import {
+  IconBlankSpot,
+  IconFireStation,
+  IconLayers,
+  IconPin,
+  IconRoad,
+} from "../Icons";
 
-const LayerControl = ({ layers, onToggle }) => {
-  const layerConfig = [
-    { key: 'blankspot',   label: 'Area Blank Spot',            color: 'var(--primary)',    Icon: IconBlankSpot },
-    { key: 'rekomendasi', label: 'Rekomendasi Lokasi Baru',    color: 'var(--accent)',     Icon: IconPin },
-    { key: 'jalan',       label: 'Jaringan Jalan Raya',        color: 'var(--text-muted)', Icon: IconRoad },
-  ];
+const layerConfig = [
+  {
+    key: "damkar",
+    label: "Pos Damkar",
+    color: "var(--primary)",
+    Icon: IconFireStation,
+  },
+  {
+    key: "blankspot",
+    label: "Area Blank Spot",
+    color: "var(--primary)",
+    Icon: IconBlankSpot,
+  },
+  {
+    key: "rekomendasi",
+    label: "Rekomendasi Pos Baru",
+    color: "var(--accent)",
+    Icon: IconPin,
+  },
+  {
+    key: "jalan",
+    label: "Jaringan Jalan Raya",
+    color: "var(--text-muted)",
+    Icon: IconRoad,
+  },
+];
 
-  return (
-    <div className="sidebar-section">
-      {/* Section Header */}
-      <div className="sidebar-section-header sidebar-section-header--static">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <span className="section-icon section-icon--gray">⚙️</span>
-          <span className="sidebar-title-text">Filter Layer</span>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-        {layerConfig.map(({ key, label, color, Icon }) => (
-          <div
-            key={key}
-            className="control-row"
-            onClick={() => onToggle(key)}
-          >
-            <div className={`custom-cb cb-${key} ${layers[key] ? 'checked' : ''}`} />
-            <label
-              className="control-label"
-              style={{ color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Icon size={13} color={color} />
-              <span>{label}</span>
-            </label>
-          </div>
-        ))}
+const LayerControl = ({ layers, onToggle }) => (
+  <div className="sidebar-section">
+    <div className="sidebar-section-header sidebar-section-header--static">
+      <div className="sidebar-section-title-group">
+        <span className="section-icon section-icon--gray">
+          <IconLayers size={16} />
+        </span>
+        <span className="sidebar-title-text">Filter Layer</span>
       </div>
     </div>
-  );
-};
+
+    <div className="layer-control-list">
+      {layerConfig.map(({ key, label, color, Icon }) => (
+        <button
+          type="button"
+          key={key}
+          className="control-row"
+          onClick={() => onToggle(key)}
+          aria-pressed={Boolean(layers[key])}
+        >
+          <span
+            className={`custom-cb cb-${key} ${layers[key] ? "checked" : ""}`}
+            aria-hidden="true"
+          />
+          <span className="control-label">
+            <Icon size={15} color={color} />
+            <span>{label}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 export default LayerControl;
