@@ -6,10 +6,25 @@ const BlankSpotLayer = ({ radius }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    setData(null);
-    getBlankspot(radius)
-      .then((res) => setData(res.data))
-      .catch((err) => console.error("Error fetching blankspots:", err));
+    let cancelled = false;
+
+    const loadBlankspot = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setData(null);
+      try {
+        const res = await getBlankspot(radius);
+        if (!cancelled) setData(res.data);
+      } catch (err) {
+        if (!cancelled) console.error("Error fetching blankspots:", err);
+      }
+    };
+
+    loadBlankspot();
+    return () => {
+      cancelled = true;
+    };
   }, [radius]);
 
   if (!data) return null;

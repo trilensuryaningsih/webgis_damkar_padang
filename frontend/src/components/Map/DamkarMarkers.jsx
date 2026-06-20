@@ -81,9 +81,15 @@ const MarkerItem = ({
   const [popupOpenId, setPopupOpenId] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!isSelected) {
-      setPopupOpenId(null);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setPopupOpenId(null);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     const handleMoveEnd = () => {
@@ -101,6 +107,7 @@ const MarkerItem = ({
     }, 1800);
 
     return () => {
+      cancelled = true;
       map.off("moveend", handleMoveEnd);
       clearTimeout(fallbackTimer);
     };

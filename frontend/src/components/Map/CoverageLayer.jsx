@@ -6,10 +6,25 @@ const CoverageLayer = ({ radius }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    setData(null); // reset saat radius berubah agar layer lama hilang
-    getCoverage(radius)
-      .then((res) => setData(res.data))
-      .catch((err) => console.error("Error fetching coverage:", err));
+    let cancelled = false;
+
+    const loadCoverage = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      setData(null); // reset saat radius berubah agar layer lama hilang
+      try {
+        const res = await getCoverage(radius);
+        if (!cancelled) setData(res.data);
+      } catch (err) {
+        if (!cancelled) console.error("Error fetching coverage:", err);
+      }
+    };
+
+    loadCoverage();
+    return () => {
+      cancelled = true;
+    };
   }, [radius]);
 
   if (!data) return null;

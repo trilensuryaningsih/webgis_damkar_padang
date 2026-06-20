@@ -4,16 +4,36 @@ require("dotenv").config();
 
 const app = express();
 
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "https://damkar2.suralayateknik.com",
+];
+
+const envAllowedOrigins = (process.env.CLIENT_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = new Set([
+  ...defaultAllowedOrigins,
+  ...envAllowedOrigins,
+]);
+
 // Middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:4173",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:5174",
-    ],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
     credentials: true,
   }),
 );

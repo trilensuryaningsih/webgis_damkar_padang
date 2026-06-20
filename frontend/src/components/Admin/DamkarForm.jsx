@@ -58,25 +58,32 @@ const DamkarForm = ({ editData, onSuccess, onCancel }) => {
   const [toast, setToast] = useState(null); // { message, type }
 
   useEffect(() => {
-    if (editData) {
-      setForm({
-        nama_lokasi: editData.nama_lokasi || "",
-        no_pos: editData.no_pos || "",
-        lat: editData.lat || "",
-        lng: editData.lng || "",
-        google_maps_link: editData.google_maps_link || "",
-      });
-    } else {
-      setForm({
-        nama_lokasi: "",
-        no_pos: "",
-        lat: "",
-        lng: "",
-        google_maps_link: "",
-      });
-    }
-    // Bersihkan toast saat form berganti mode (tambah/edit)
-    setToast(null);
+    let cancelled = false;
+    const nextForm = editData
+      ? {
+          nama_lokasi: editData.nama_lokasi || "",
+          no_pos: editData.no_pos || "",
+          lat: editData.lat || "",
+          lng: editData.lng || "",
+          google_maps_link: editData.google_maps_link || "",
+        }
+      : {
+          nama_lokasi: "",
+          no_pos: "",
+          lat: "",
+          lng: "",
+          google_maps_link: "",
+        };
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setForm(nextForm);
+      setToast(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [editData]);
 
   const showToast = (message, type = "success") => {

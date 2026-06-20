@@ -8,17 +8,30 @@ const SearchBox = ({ onSelectPos, refresh }) => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (query.trim() === '') {
-      setResults([]);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setResults([]);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     const delayDebounceFn = setTimeout(() => {
       getDamkarList(query)
-        .then(res => setResults(res.data))
-        .catch(err => console.error('Error searching stations:', err));
+        .then(res => {
+          if (!cancelled) setResults(res.data);
+        })
+        .catch(err => {
+          if (!cancelled) console.error('Error searching stations:', err);
+        });
     }, 200);
 
-    return () => clearTimeout(delayDebounceFn);
+    return () => {
+      cancelled = true;
+      clearTimeout(delayDebounceFn);
+    };
   }, [query, refresh]);
 
   const handleSelect = (pos) => {

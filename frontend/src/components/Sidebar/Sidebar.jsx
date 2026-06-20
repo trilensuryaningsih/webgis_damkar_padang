@@ -1,4 +1,3 @@
-import React from "react";
 import StatsPanel from "./StatsPanel";
 import LayerControl from "./LayerControl";
 import RadiusControl from "./RadiusControl";

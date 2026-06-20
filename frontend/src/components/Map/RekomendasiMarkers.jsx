@@ -82,9 +82,15 @@ const RekomendasiMarkers = ({
 
   // Efek untuk menunda pembukaan popup sampai peta selesai berpindah
   useEffect(() => {
+    let cancelled = false;
+
     if (!selectedRekomendasiId) {
-      setPopupOpenId(null);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setPopupOpenId(null);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     const handleMoveEnd = () => {
@@ -102,6 +108,7 @@ const RekomendasiMarkers = ({
     }, 1800);
 
     return () => {
+      cancelled = true;
       map.off("moveend", handleMoveEnd);
       clearTimeout(fallbackTimer);
     };
