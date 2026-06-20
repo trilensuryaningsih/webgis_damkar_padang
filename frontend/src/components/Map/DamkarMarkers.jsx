@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Marker, Popup } from "react-leaflet";
+import { Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getDamkar } from "../../services/api";
 import {
@@ -32,6 +32,7 @@ const createDamkarIcon = (isSelected = false) => {
         box-shadow:0 0 ${isSelected ? 20 : 10}px ${glowColor}, 0 2px 6px rgba(0,0,0,0.4);
         display:flex;align-items:center;justify-content:center;
         border:${borderWidth}px solid ${borderColor};
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         ${pulse}
         position:relative;
       ">
@@ -76,13 +77,34 @@ const MarkerItem = ({
   const isRouteOrigin = routeOriginKey === `damkar:${id}`;
   const isSelected = selectedDamkarId === id || isRouteDamkar || isRouteOrigin;
 
+  const map = useMap();
+  const [popupOpenId, setPopupOpenId] = useState(null);
+
   useEffect(() => {
-    if (isSelected && markerRef.current) {
+    if (!isSelected) {
+      setPopupOpenId(null);
+      return;
+    }
+
+    const handleMoveEnd = () => {
+      setPopupOpenId(id);
       setTimeout(() => {
         markerRef.current?.openPopup();
-      }, 300);
-    }
-  }, [isSelected]);
+      }, 50);
+    };
+
+    map.once("moveend", handleMoveEnd);
+
+    const fallbackTimer = setTimeout(() => {
+      map.off("moveend", handleMoveEnd);
+      handleMoveEnd();
+    }, 1800);
+
+    return () => {
+      map.off("moveend", handleMoveEnd);
+      clearTimeout(fallbackTimer);
+    };
+  }, [isSelected, id, map]);
 
   return (
     <Marker
@@ -97,7 +119,12 @@ const MarkerItem = ({
         },
       }}
     >
-      <Popup>
+      {popupOpenId === id && (
+        <Popup
+          eventHandlers={{
+            remove: () => setPopupOpenId(null),
+          }}
+        >
         <div style={{ textAlign: "left", minWidth: "200px" }}>
           <h4
             style={{
@@ -145,7 +172,7 @@ const MarkerItem = ({
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-muted)" }}>Koordinat:</span>
               <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                {lat.toFixed(5)}, {lng.toFixed(5)}
+                {lat.toFixed(6)}, {lng.toFixed(6)}
               </span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -234,7 +261,8 @@ const MarkerItem = ({
             {isRouteOrigin ? "Batalkan Titik Awal" : "Jadikan Titik Awal"}
           </button>
         </div>
-      </Popup>
+        </Popup>
+      )}
     </Marker>
   );
 };

@@ -38,7 +38,8 @@ const FlyToHandler = ({ damkarCoords, rekomendasiCoords }) => {
       prevDamkar.current = damkarCoords;
       map.flyTo([damkarCoords.lat, damkarCoords.lng], 15, {
         animate: true,
-        duration: 1.0,
+        duration: 1.5,
+        easeLinearity: 0.25,
       });
     }
   }, [damkarCoords, map]);
@@ -50,9 +51,10 @@ const FlyToHandler = ({ damkarCoords, rekomendasiCoords }) => {
         prevRekomendasi.current?.lng !== rekomendasiCoords.lng)
     ) {
       prevRekomendasi.current = rekomendasiCoords;
-      map.flyTo([rekomendasiCoords.lat, rekomendasiCoords.lng], 14, {
+      map.flyTo([rekomendasiCoords.lat, rekomendasiCoords.lng], 14.5, {
         animate: true,
-        duration: 1.0,
+        duration: 1.5,
+        easeLinearity: 0.25,
       });
     }
   }, [rekomendasiCoords, map]);

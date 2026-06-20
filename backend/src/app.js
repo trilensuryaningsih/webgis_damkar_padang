@@ -9,8 +9,10 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://localhost:4173",
       "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
     ],
     credentials: true,
   }),
@@ -46,10 +48,19 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(
     `🗄️  Database: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}`,
   );
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`❌ Port ${PORT} sudah digunakan. Hentikan proses lain atau ganti PORT di .env`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
 });

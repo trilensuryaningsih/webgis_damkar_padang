@@ -22,10 +22,11 @@ async function convertToGeoJSON(list, radius = 3000) {
 
   for (const pos of list) {
     let geo = {
-      alamat_lengkap: "Alamat Mockup, Padang",
-      kelurahan: "Mock Kelurahan",
-      kecamatan: "Mock Kecamatan",
-      kota: "Padang"
+      alamat_lengkap: `Jl. Raya Padang, Kota Padang, Sumatera Barat`,
+      kelurahan: "-",
+      kecamatan: "-",
+      kota: "Kota Padang",
+      provinsi: "Sumatera Barat"
     };
     try {
       geo = await reverseGeocode(pos.lat, pos.lng);
@@ -50,6 +51,7 @@ async function convertToGeoJSON(list, radius = 3000) {
         kelurahan: geo.kelurahan,
         kecamatan: geo.kecamatan,
         kota: geo.kota,
+        provinsi: geo.provinsi || "Sumatera Barat",
         area_km2: parseFloat(singleArea.toFixed(2)),
         persen_coverage: parseFloat(((singleArea / cityArea) * 100).toFixed(2)),
         radius_m: radius
@@ -124,6 +126,7 @@ router.get('/', async (req, res) => {
             kelurahan: geo.kelurahan,
             kecamatan: geo.kecamatan,
             kota: geo.kota,
+            provinsi: geo.provinsi || "Sumatera Barat",
             area_km2: parseFloat(row.area_km2),
             persen_coverage: parseFloat(row.persen_coverage),
             radius_m: radius

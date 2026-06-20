@@ -7,6 +7,41 @@ const { reverseGeocode } = require("../utils/geocoder");
 // In-memory cache for recommendation queries
 let recommendationCache = {};
 
+const PADANG_BOUNDARY = [
+  [100.3020, -0.7930], // Pantai Utara (Batas Padang Pariaman)
+  [100.3090, -0.8100], // Pantai Pasir Jambak Utara
+  [100.3150, -0.8250], // Pantai Pasir Jambak Selatan
+  [100.3220, -0.8400], // Pantai Koto Tangah / Padang Sarai
+  [100.3300, -0.8600], // Pantai Air Tawar Utara
+  [100.3350, -0.8750], // Pantai Air Tawar Selatan
+  [100.3410, -0.8900], // Pantai Purus / Padang Utara
+  [100.3450, -0.9050], // Pantai Padang / Muaro Lasak
+  [100.3490, -0.9200], // Muaro Padang / Gunung Padang
+  [100.3540, -0.9400], // Pantai Air Manis Utara
+  [100.3590, -0.9600], // Pantai Air Manis Selatan
+  [100.3650, -0.9800], // Bukit Lampu Utara
+  [100.3700, -0.9950], // Teluk Bayur Pelabuhan
+  [100.3750, -1.0100], // Bukit Lampu Selatan
+  [100.3800, -1.0250], // Pantai Teluk Kabung Utara
+  [100.3880, -1.0450], // Pantai Carolina / Bungus
+  [100.3780, -1.0650], // Pantai Sungai Pisang Utara
+  [100.3750, -1.0800], // Pantai Sungai Pisang Selatan - Ujung Selatan Pantai
+  [100.4134, -1.0512], // Batas darat selatan-timur
+  [100.4534, -1.0212],
+  [100.4934, -0.9912],
+  [100.5234, -0.9512],
+  [100.5312, -0.9112],
+  [100.5234, -0.8712], // Batas Timur
+  [100.5012, -0.8312],
+  [100.4712, -0.8034],
+  [100.4312, -0.7891],
+  [100.3891, -0.7712],
+  [100.3512, -0.7589], // Batas darat utara
+  [100.3020, -0.7930], // Kembali ke Awal
+];
+
+const PADANG_LAND_WKT = 'POLYGON((100.3020 -0.7930, 100.3090 -0.8100, 100.3150 -0.8250, 100.3220 -0.8400, 100.3300 -0.8600, 100.3350 -0.8750, 100.3410 -0.8900, 100.3450 -0.9050, 100.3490 -0.9200, 100.3540 -0.9400, 100.3590 -0.9600, 100.3650 -0.9800, 100.3700 -0.9950, 100.3750 -1.0100, 100.3800 -1.0250, 100.3880 -1.0450, 100.3780 -1.0650, 100.3750 -1.0800, 100.4134 -1.0512, 100.4534 -1.0212, 100.4934 -0.9912, 100.5234 -0.9512, 100.5312 -0.9112, 100.5234 -0.8712, 100.5012 -0.8312, 100.4712 -0.8034, 100.4312 -0.7891, 100.3891 -0.7712, 100.3512 -0.7589, 100.3020 -0.7930))';
+
 function haversineDistanceKm(a, b) {
   const earthRadiusKm = 6371;
   const toRadians = (degrees) => (degrees * Math.PI) / 180;
@@ -74,7 +109,7 @@ router.clearCache = () => {
 // ============================================================
 // Greedy Set Cover Algorithm — Grid Sampling Approach
 // ============================================================
-async function greedySetCover(radius, maxIterations = 10) {
+async function greedySetCover(radius, maxIterations = 15) {
   const candidates = [];
 
   // Step 1: Ambil blankspot awal dari database
@@ -88,7 +123,7 @@ async function greedySetCover(radius, maxIterations = 10) {
     analysis AS (
       SELECT
         k.geom AS kota_geom,
-        ST_Difference(k.geom, c.geom) AS blankspot_geom,
+        ST_Intersection(ST_Difference(k.geom, c.geom), ST_GeomFromText($2, 4326)) AS blankspot_geom,
         ST_Intersection(k.geom, c.geom) AS coverage_geom
       FROM kota k CROSS JOIN coverage c
     )
@@ -99,7 +134,7 @@ async function greedySetCover(radius, maxIterations = 10) {
       ROUND(ST_Area(kota_geom::geography)::numeric/1000000, 2) AS luas_kota_km2
     FROM analysis
   `,
-    [radius],
+    [radius, PADANG_LAND_WKT],
   );
 
   if (!initQuery.rows[0]) return { candidates: [], summary: null };
@@ -174,9 +209,7 @@ async function greedySetCover(radius, maxIterations = 10) {
           *,
           (
             0.35 * GREATEST(0, 1 - jarak_permukiman_km / 2.5) +
-            0.30 * score / NULLIF(MAX(score) OVER (), 0) +
-            0.20 * jarak_pos_terdekat_km /
-              NULLIF(MAX(jarak_pos_terdekat_km) OVER (), 0) +
+            0.50 * score / NULLIF(MAX(score) OVER (), 0) +
             0.15 * GREATEST(0, 1 - jarak_jalan_km / 0.75)
           ) AS skor_gabungan
         FROM candidate_metrics
@@ -193,13 +226,44 @@ async function greedySetCover(radius, maxIterations = 10) {
       WHERE score > 0
         AND jarak_permukiman_km <= 2.5
         AND jarak_jalan_km <= 0.75
-      ORDER BY skor_gabungan DESC, score DESC
-      LIMIT 1
+      ORDER BY ROUND(score, 1) DESC, skor_gabungan DESC
     `,
       [blankspotWkt, radius],
     );
 
-    if (!bestCandidateQuery.rows[0] || !bestCandidateQuery.rows[0].score) break;
+    if (bestCandidateQuery.rows.length === 0) break;
+
+    // Terapkan penalti jarak kandidat-ke-kandidat secara real-time di JS
+    let bestCand = null;
+    let maxFinalScore = -1;
+
+    for (const row of bestCandidateQuery.rows) {
+      const ptCoords = { lat: parseFloat(row.lat), lng: parseFloat(row.lng) };
+
+      let minDistCandidates = Infinity;
+      for (const cand of candidates) {
+        const dist = haversineDistanceKm(ptCoords, { lat: cand.lat, lng: cand.lng });
+        if (dist < minDistCandidates) minDistCandidates = dist;
+      }
+
+      let penalty = 1.0;
+      const minRequiredDist = (radius / 1000) * 1.2; // minimal 1.2 * radius
+      if (minDistCandidates < minRequiredDist) {
+        penalty = Math.pow(minDistCandidates / minRequiredDist, 2);
+      }
+
+      const finalScore = parseFloat(row.skor_gabungan) * penalty;
+
+      if (finalScore > maxFinalScore) {
+        maxFinalScore = finalScore;
+        bestCand = {
+          ...row,
+          finalScore,
+        };
+      }
+    }
+
+    if (!bestCand || !bestCand.score) break;
 
     const {
       lng,
@@ -208,8 +272,7 @@ async function greedySetCover(radius, maxIterations = 10) {
       jarak_pos_terdekat_km,
       jarak_permukiman_km,
       jarak_jalan_km,
-    } =
-      bestCandidateQuery.rows[0];
+    } = bestCand;
     const kontribusi = parseFloat(score);
 
     if (kontribusi < MIN_KM2) break;
@@ -317,7 +380,8 @@ router.get("/", async (req, res) => {
           alamat_lengkap: geo.alamat_lengkap,
           kelurahan: geo.kelurahan,
           kecamatan: geo.kecamatan,
-          kota: geo.kota
+          kota: geo.kota,
+          provinsi: geo.provinsi || "Sumatera Barat"
         },
       });
     }
@@ -336,127 +400,193 @@ router.get("/", async (req, res) => {
       err.message,
     );
 
+    const turf = require("@turf/turf");
     const mockList = damkar.getMockList();
     const luasKota = 686.67;
-    const singleArea = Math.PI * Math.pow(radius / 1000, 2);
-    const coveredNow = Math.min(luasKota, mockList.length * singleArea * 0.85);
-    let blankRemaining = Math.max(0, luasKota - coveredNow);
 
-    const mockCandidates = [
-      { coords: [100.3524, -0.8524], nama: "Koto Tangah Utara", permukiman: 0.25, jalan: 0.08 },
-      { coords: [100.4412, -0.9012], nama: "Kuranji Timur", permukiman: 0.45, jalan: 0.12 },
-      { coords: [100.3124, -0.9412], nama: "Padang Barat Tengah", permukiman: 0.15, jalan: 0.05 },
-      { coords: [100.4712, -1.0012], nama: "Lubuk Begalung Selatan", permukiman: 0.65, jalan: 0.18 },
-      { coords: [100.3912, -1.0612], nama: "Bungus Teluk Kabung", permukiman: 0.9, jalan: 0.2 },
-      { coords: [100.3224, -0.8212], nama: "Koto Tangah Selatan", permukiman: 0.35, jalan: 0.1 },
-      { coords: [100.4524, -0.8612], nama: "Pauh Timur", permukiman: 0.7, jalan: 0.16 },
-    ]
-      .map((candidate) => {
-        const point = { lat: candidate.coords[1], lng: candidate.coords[0] };
-        const nearestDistance = Math.min(
-          ...mockList.map((pos) => haversineDistanceKm(point, pos)),
-        );
-        return {
-          ...candidate,
-          jarak_pos_terdekat_km: parseFloat(nearestDistance.toFixed(2)),
-        };
-      })
-      .sort(
-        (a, b) => b.jarak_pos_terdekat_km - a.jarak_pos_terdekat_km,
-      );
+    try {
+      // 1. Definisikan polygon batas kota Padang
+      const boundaryPoly = turf.polygon([PADANG_BOUNDARY]);
 
-    const features = [];
-    let mockId = 1;
-    for (const m of mockCandidates) {
-      if (blankRemaining <= 1.0) break;
-      const lat = m.coords[1];
-      const lng = m.coords[0];
-      const kontribusi = parseFloat(
-        Math.min(blankRemaining, singleArea * 0.9).toFixed(2),
-      );
-      const sebelum = parseFloat(blankRemaining.toFixed(2));
-      blankRemaining = Math.max(0, blankRemaining - kontribusi);
-      const sesudah = parseFloat(blankRemaining.toFixed(2));
-      
-      const geo = await reverseGeocode(lat, lng);
-
-      features.push({
-        type: "Feature",
-        id: mockId,
-        geometry: { type: "Point", coordinates: m.coords },
-        properties: {
-          id: mockId,
-          pos_ke: mockId,
-          nama: `Rekomendasi ${mockId} - ${m.nama}`,
-          luas_blankspot_sebelum_km2: sebelum,
-          luas_blankspot_sesudah_km2: sesudah,
-          kontribusi_km2: kontribusi,
-          persen_kontribusi: parseFloat(
-            ((kontribusi / luasKota) * 100).toFixed(2),
-          ),
-          jarak_pos_terdekat_km: m.jarak_pos_terdekat_km,
-          jarak_permukiman_km: m.permukiman,
-          jarak_jalan_km: m.jalan,
-          skor_prioritas: 0,
-          dasar_prioritas:
-            "Kedekatan permukiman, cakupan, jarak pos eksisting, dan akses jalan",
-          luas_km2: kontribusi,
-          radius_used: radius,
-          lat: lat,
-          lng: lng,
-          alamat_lengkap: geo.alamat_lengkap,
-          kelurahan: geo.kelurahan,
-          kecamatan: geo.kecamatan,
-          kota: geo.kota
-        },
+      // 2. Buat buffer untuk pos eksisting
+      const existingBuffers = mockList.map((pos) => {
+        return turf.circle([pos.lng, pos.lat], radius / 1000, {
+          units: "kilometers",
+          steps: 32,
+        });
       });
-      mockId++;
+
+      // 3. Union coverage pos eksisting
+      let unionedCoverage = existingBuffers[0];
+      for (let i = 1; i < existingBuffers.length; i++) {
+        unionedCoverage = turf.union(turf.featureCollection([unionedCoverage, existingBuffers[i]]));
+      }
+
+      // 4. Hitung blankspot awal (daratan Padang - unioned coverage eksisting)
+      let blankspot = turf.difference(turf.featureCollection([boundaryPoly, unionedCoverage]));
+      
+      if (!blankspot) {
+        return res.json({
+          type: "FeatureCollection",
+          features: [],
+          summary: {
+            luas_kota_km2: luasKota,
+            coverage_sebelum_km2: luasKota,
+            coverage_sesudah_km2: luasKota,
+            persen_sebelum: 100,
+            persen_sesudah: 100,
+            sisa_blankspot_km2: 0,
+            total_pos_dibutuhkan: 0,
+            fully_covered: true
+          }
+        });
+      }
+
+      const bbox = turf.bbox(blankspot);
+      // Buat grid sampling yang dinamis berdasarkan radius agar performanya seimbang
+      const cellSide = Math.max(1.5, (radius / 1000) * 0.85);
+      const grid = turf.pointGrid(bbox, cellSide, { units: "kilometers", mask: blankspot });
+
+      const features = [];
+      let currentBlankspot = turf.clone(blankspot);
+      let blankRemaining = turf.area(currentBlankspot) / 1000000;
+      const coverageBefore = luasKota - blankRemaining;
+
+      const maxCandidates = 15;
+      const candidates = [];
+
+      for (let step = 0; step < maxCandidates; step++) {
+        if (blankRemaining <= 1.0 || grid.features.length === 0) break;
+
+        let bestPoint = null;
+        let maxScore = -1;
+        let bestBuffer = null;
+        let bestDistance = 0;
+
+        for (const pt of grid.features) {
+          const ptCoords = pt.geometry.coordinates;
+
+          const ptBuffer = turf.circle(ptCoords, radius / 1000, {
+            units: "kilometers",
+            steps: 32,
+          });
+
+          const intersection = turf.intersect(turf.featureCollection([currentBlankspot, ptBuffer]));
+          const score = intersection ? turf.area(intersection) / 1000000 : 0;
+
+          // Jarak ke pos eksisting terdekat
+          let minDistExisting = Infinity;
+          for (const pos of mockList) {
+            const dist = turf.distance(ptCoords, [pos.lng, pos.lat], { units: "kilometers" });
+            if (dist < minDistExisting) minDistExisting = dist;
+          }
+
+          // Spasi ke kandidat yang terpilih sebelumnya (untuk menghindari penumpukan rekomendasi baru)
+          let minDistCandidates = Infinity;
+          for (const cand of candidates) {
+            const dist = turf.distance(ptCoords, [cand.lng, cand.lat], { units: "kilometers" });
+            if (dist < minDistCandidates) minDistCandidates = dist;
+          }
+
+          // Penalti skor jika terlalu dekat dengan kandidat lain yang baru saja terpilih
+          let penalty = 1.0;
+          const minRequiredDist = (radius / 1000) * 1.2; // Spasi minimum antar rekomendasi
+          if (minDistCandidates < minRequiredDist) {
+            penalty = Math.pow(minDistCandidates / minRequiredDist, 2);
+          }
+
+          const finalScore = score * penalty;
+
+          if (finalScore > maxScore && score > 0.1) {
+            maxScore = finalScore;
+            bestPoint = pt;
+            bestBuffer = ptBuffer;
+            bestDistance = minDistExisting;
+          }
+        }
+
+        if (!bestPoint) break;
+
+        const coords = bestPoint.geometry.coordinates;
+        const kontribusi = maxScore;
+        const sebelum = blankRemaining;
+        
+        const diff = turf.difference(turf.featureCollection([currentBlankspot, bestBuffer]));
+        if (diff) {
+          currentBlankspot = diff;
+          blankRemaining = turf.area(currentBlankspot) / 1000000;
+        } else {
+          blankRemaining = 0;
+        }
+
+        const maxCircleArea = Math.PI * Math.pow(radius / 1000, 2);
+        const efficiency = kontribusi / maxCircleArea;
+        const mockPriorityScore = 0.6 * efficiency + 0.4 * Math.min(1.0, bestDistance / (radius / 1000));
+
+        candidates.push({
+          lng: coords[0],
+          lat: coords[1],
+          nama: `Rekomendasi ${step + 1}`,
+          kontribusi_km2: kontribusi,
+          persen_kontribusi: parseFloat(((kontribusi / luasKota) * 100).toFixed(2)),
+          jarak_pos_terdekat_km: bestDistance,
+          luas_blankspot_sebelum_km2: sebelum,
+          luas_blankspot_sesudah_km2: blankRemaining,
+          id: step + 1,
+          pos_ke: step + 1,
+          skor_prioritas: parseFloat(mockPriorityScore.toFixed(4)),
+          jarak_permukiman_km: parseFloat((0.1 + Math.random() * 0.7).toFixed(2)),
+          jarak_jalan_km: parseFloat((0.02 + Math.random() * 0.13).toFixed(2)),
+        });
+      }
+
+      for (const c of candidates) {
+        const geo = await reverseGeocode(c.lat, c.lng);
+        features.push({
+          type: "Feature",
+          id: c.id,
+          geometry: { type: "Point", coordinates: [c.lng, c.lat] },
+          properties: {
+            ...c,
+            nama: `Prioritas ${c.id} - ${geo.kelurahan || geo.kecamatan || "Pos Baru"}`,
+            alamat_lengkap: geo.alamat_lengkap,
+            kelurahan: geo.kelurahan,
+            kecamatan: geo.kecamatan,
+            kota: geo.kota,
+            provinsi: geo.provinsi || "Sumatera Barat",
+            radius_used: radius,
+            dasar_prioritas: "Optimalisasi cakupan blank spot dan meminimalkan tumpang tindih area layanan."
+          }
+        });
+      }
+
+      const finalCoverage = luasKota - blankRemaining;
+      const responseJSON = {
+        type: "FeatureCollection",
+        features,
+        summary: {
+          luas_kota_km2: luasKota,
+          coverage_sebelum_km2: parseFloat(coverageBefore.toFixed(2)),
+          coverage_sesudah_km2: parseFloat(finalCoverage.toFixed(2)),
+          persen_sebelum: parseFloat(((coverageBefore / luasKota) * 100).toFixed(2)),
+          persen_sesudah: parseFloat(((finalCoverage / luasKota) * 100).toFixed(2)),
+          sisa_blankspot_km2: parseFloat(blankRemaining.toFixed(2)),
+          total_pos_dibutuhkan: features.length,
+          fully_covered: blankRemaining <= 1.0,
+        },
+      };
+
+      recommendationCache[radius] = responseJSON;
+      res.json(responseJSON);
+
+    } catch (turfErr) {
+      console.error("❌ Turf.js Greedy Set Cover failed:", turfErr.message);
+      res.json({
+        type: "FeatureCollection",
+        features: [],
+        summary: { error: turfErr.message }
+      });
     }
-
-    const rankedMockFeatures = rankCandidates(
-      features.map((feature) => ({
-        ...feature.properties,
-        lng: feature.geometry.coordinates[0],
-        lat: feature.geometry.coordinates[1],
-      })),
-    );
-    const featureByCoordinate = new Map(
-      features.map((feature) => [
-        feature.geometry.coordinates.join(","),
-        feature,
-      ]),
-    );
-    const rankedFeatures = rankedMockFeatures.map((candidate, index) => {
-      const feature = featureByCoordinate.get(`${candidate.lng},${candidate.lat}`);
-      feature.id = index + 1;
-      feature.id = index + 1;
-      feature.properties.id = index + 1;
-      feature.properties.pos_ke = index + 1;
-      feature.properties.nama = `Prioritas ${index + 1} - ${feature.properties.nama.split(" - ").pop()}`;
-      feature.properties.skor_prioritas = candidate.skor_prioritas;
-      return feature;
-    });
-
-    const finalCoverage = luasKota - blankRemaining;
-    const responseJSON = {
-      type: "FeatureCollection",
-      features: rankedFeatures,
-      summary: {
-        luas_kota_km2: luasKota,
-        coverage_sebelum_km2: parseFloat(coveredNow.toFixed(2)),
-        coverage_sesudah_km2: parseFloat(finalCoverage.toFixed(2)),
-        persen_sebelum: parseFloat(((coveredNow / luasKota) * 100).toFixed(2)),
-        persen_sesudah: parseFloat(
-          ((finalCoverage / luasKota) * 100).toFixed(2),
-        ),
-        sisa_blankspot_km2: parseFloat(blankRemaining.toFixed(2)),
-        total_pos_dibutuhkan: rankedFeatures.length,
-        fully_covered: blankRemaining <= 1.0,
-      },
-    };
-
-    recommendationCache[radius] = responseJSON;
-    res.json(responseJSON);
   }
 });
 

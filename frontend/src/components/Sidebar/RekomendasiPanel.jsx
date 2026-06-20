@@ -183,6 +183,25 @@ const RekomendasiPanel = ({
                   cakupan, jarak dari pos lama, dan akses jalan.
                 </div>
 
+                <div style={{ marginTop: "10px", borderTop: "1px solid var(--border)", paddingTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div className="summary-row">
+                    <span className="summary-label">Luas Daratan Padang:</span>
+                    <strong>{Number(summary.luas_kota_km2).toFixed(2)} km²</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">Cakupan Eksisting:</span>
+                    <strong>{Number(summary.coverage_sebelum_km2).toFixed(2)} km² ({Number(summary.persen_sebelum).toFixed(1)}%)</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">Cakupan Setelah Rekomendasi:</span>
+                    <strong style={{ color: "var(--success)" }}>{Number(summary.coverage_sesudah_km2).toFixed(2)} km² ({Number(summary.persen_sesudah).toFixed(1)}%)</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span className="summary-label">Sisa Blank Spot:</span>
+                    <strong style={{ color: "var(--warning)" }}>{Number(summary.sisa_blankspot_km2).toFixed(2)} km² ({(100 - Number(summary.persen_sesudah)).toFixed(1)}%)</strong>
+                  </div>
+                </div>
+
                 {summary.fully_covered && (
                   <div className="summary-alert-success">
                     <IconCheck size={13} />
@@ -263,66 +282,82 @@ const RekomendasiPanel = ({
 
                       {isExpanded && (
                         <div className="card-expanded-detail">
-                          {p.alamat_lengkap && (
-                            <p className="rekomendasi-card-address">
-                              {p.alamat_lengkap}
-                            </p>
-                          )}
-
-                          <div className="card-location-tags">
-                            <span><strong>Kel:</strong> {p.kelurahan || "-"}</span>
-                            <span><strong>Kec:</strong> {p.kecamatan || "-"}</span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "10.5px", color: "var(--text-main)", marginBottom: "4px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <span style={{ color: "var(--text-muted)", fontSize: "8.5px", fontWeight: "600", textTransform: "uppercase" }}>Alamat:</span>
+                              <span style={{ lineHeight: "1.3" }}>{p.alamat_lengkap}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Kelurahan:</span>
+                              <strong>{p.kelurahan || "-"}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Kecamatan:</span>
+                              <strong>{p.kecamatan || "-"}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Kota:</span>
+                              <strong>{p.kota || "Kota Padang"}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Provinsi:</span>
+                              <strong>{p.provinsi || "Sumatera Barat"}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Koordinat:</span>
+                              <strong style={{ fontVariantNumeric: "tabular-nums" }}>{lat.toFixed(6)}, {lng.toFixed(6)}</strong>
+                            </div>
                           </div>
+
+                          <div style={{ margin: "6px 0", borderTop: "1px dashed var(--border)" }} />
 
                           <div className="rekomendasi-card-meta">
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">+ Coverage</span>
+                              <span className="pos-meta-label">Kontribusi Coverage</span>
                               <span className="rekomendasi-value-success">
                                 +{persenKontribusi.toFixed(1)}%
                               </span>
                             </span>
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">Luas Tambahan</span>
-                              <span className="pos-meta-value">
-                                {kontribusi.toFixed(2)} km2
+                              <span className="pos-meta-label">Marginal Coverage Gain</span>
+                              <span className="rekomendasi-value-success">
+                                {kontribusi.toFixed(2)} km²
                               </span>
                             </span>
                             {blankTeratasi > 0 && (
                               <span className="pos-meta-item">
-                                <span className="pos-meta-label">Blankspot Teratasi</span>
+                                <span className="pos-meta-label">Blank spot teratasi</span>
                                 <span className="rekomendasi-value-warning">
-                                  {blankTeratasi.toFixed(2)} km2
+                                  {blankTeratasi.toFixed(2)} km²
                                 </span>
                               </span>
                             )}
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">
-                                Jarak Pos Terdekat
+                              <span className="pos-meta-label">Radius Analisis</span>
+                              <span className="pos-meta-value">
+                                {(radius / 1000).toFixed(1)} km
                               </span>
+                            </span>
+                            <span className="pos-meta-item">
+                              <span className="pos-meta-label">Jarak ke pos terdekat</span>
                               <span className="rekomendasi-value-warning">
                                 {jarakPosTerdekat.toFixed(2)} km
                               </span>
                             </span>
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">
-                                Jarak Permukiman
-                              </span>
+                              <span className="pos-meta-label">Jarak ke permukiman</span>
                               <span className="rekomendasi-value-success">
                                 {jarakPermukiman.toFixed(2)} km
                               </span>
                             </span>
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">
-                                Akses Jalan
-                              </span>
+                              <span className="pos-meta-label">Jarak ke jalan</span>
                               <span className="pos-meta-value">
                                 {jarakJalan.toFixed(2)} km
                               </span>
                             </span>
                             <span className="pos-meta-item">
-                              <span className="pos-meta-label">
-                                Skor Prioritas
-                              </span>
+                              <span className="pos-meta-label">Skor Prioritas</span>
                               <span className="rekomendasi-value-score">
                                 {skor}%
                               </span>
@@ -330,7 +365,7 @@ const RekomendasiPanel = ({
                             <span className="pos-meta-item">
                               <span className="pos-meta-label">Koordinat</span>
                               <span className="pos-meta-value pos-meta-value--mono">
-                                {lat.toFixed(5)}, {lng.toFixed(5)}
+                                {lat.toFixed(6)}, {lng.toFixed(6)}
                               </span>
                             </span>
                           </div>

@@ -6,13 +6,15 @@ const damkar = require("./damkar");
 // GET /api/stats?radius=3000
 router.get("/", async (req, res) => {
   const radius = parseInt(req.query.radius) || 3000;
+  const PADANG_LAND_WKT = 'POLYGON((100.3020 -0.7930, 100.3090 -0.8100, 100.3150 -0.8250, 100.3220 -0.8400, 100.3300 -0.8600, 100.3350 -0.8750, 100.3410 -0.8900, 100.3450 -0.9050, 100.3490 -0.9200, 100.3540 -0.9400, 100.3590 -0.9600, 100.3650 -0.9800, 100.3700 -0.9950, 100.3750 -1.0100, 100.3800 -1.0250, 100.3880 -1.0450, 100.3780 -1.0650, 100.3750 -1.0800, 100.4134 -1.0512, 100.4534 -1.0212, 100.4934 -0.9912, 100.5234 -0.9512, 100.5312 -0.9112, 100.5234 -0.8712, 100.5012 -0.8312, 100.4712 -0.8034, 100.4312 -0.7891, 100.3891 -0.7712, 100.3512 -0.7589, 100.3020 -0.7930))';
 
   try {
     const result = await pool.query(
       `
       WITH
         kota AS (
-          SELECT ST_Union(geom) AS geom FROM batas_wilayah
+          SELECT ST_Intersection(ST_Union(geom), ST_GeomFromText($2, 4326)) AS geom 
+          FROM batas_wilayah
         ),
         coverage AS (
           SELECT ST_Union(ST_Buffer(geom::geography, $1)::geometry) AS geom
@@ -38,7 +40,7 @@ router.get("/", async (req, res) => {
         $1                                                                  AS radius_used
       FROM kota k, coverage_clipped cc, blankspot b
     `,
-      [radius],
+      [radius, PADANG_LAND_WKT],
     );
 
     if (result.rows[0] && result.rows[0].luas_kota_km2) {
