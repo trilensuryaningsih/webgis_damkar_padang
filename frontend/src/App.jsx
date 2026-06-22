@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import MapPage from './pages/MapPage';
 import AdminPage from './pages/AdminPage';
-import { IconFire, IconMap, IconDatabase, IconBell, IconSettings, IconChevronDown, IconSun, IconMoon } from './components/Icons';
+import { IconFire, IconMap, IconDatabase, IconChevronDown, IconSun, IconMoon } from './components/Icons';
 
 function App() {
   const [page, setPage] = useState('map'); // 'map' or 'admin'
@@ -21,7 +21,7 @@ function App() {
   };
 
   return (
-    <div style={{ height: '100vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100dvh', width: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
       <nav className="app-navbar">
         <div className="brand">
@@ -62,12 +62,6 @@ function App() {
             title={theme === 'dark' ? "Mode Terang" : "Mode Gelap"}
           >
             {theme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-          </button>
-          <button className="nav-icon-btn" aria-label="Notifikasi">
-            <IconBell size={18} />
-          </button>
-          <button className="nav-icon-btn" aria-label="Pengaturan">
-            <IconSettings size={18} />
           </button>
           <div className="nav-user-profile">
             <div className="user-avatar">A</div>

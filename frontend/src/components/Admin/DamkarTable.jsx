@@ -147,7 +147,7 @@ const DamkarTable = ({ onEdit, onRefresh, refresh }) => {
             data.map((pos) => (
               <tr key={pos.id}>
                 {/* No. Pos */}
-                <td style={{ fontWeight: "600" }}>
+                <td data-label="No. Pos" style={{ fontWeight: "600" }}>
                   <div
                     style={{
                       display: "flex",
@@ -161,10 +161,11 @@ const DamkarTable = ({ onEdit, onRefresh, refresh }) => {
                 </td>
 
                 {/* Nama Lokasi */}
-                <td>{pos.nama_lokasi}</td>
+                <td data-label="Lokasi">{pos.nama_lokasi}</td>
 
                 {/* Koordinat — lat, lng dalam satu kolom monospace */}
                 <td
+                  data-label="Koordinat"
                   style={{
                     fontFamily: "monospace",
                     fontSize: "12px",
@@ -176,7 +177,7 @@ const DamkarTable = ({ onEdit, onRefresh, refresh }) => {
                 </td>
 
                 {/* Link Maps */}
-                <td style={{ textAlign: "center" }}>
+                <td data-label="Link Maps" style={{ textAlign: "center" }}>
                   {pos.google_maps_link ? (
                     <a
                       href={pos.google_maps_link}
@@ -215,7 +216,7 @@ const DamkarTable = ({ onEdit, onRefresh, refresh }) => {
                 </td>
 
                 {/* Aksi */}
-                <td>
+                <td data-label="Aksi" className="table-action-cell">
                   <div
                     style={{
                       display: "flex",

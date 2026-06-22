@@ -107,6 +107,7 @@ body {
     background-color: var(--bg-app);
     overflow: hidden;
     height: 100vh;
+    height: 100dvh; /* dynamic viewport — hindari konten ke-cut di browser mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -382,6 +383,7 @@ body {
 .app-container {
     padding-top: var(--navbar-height);
     height: 100vh;
+    height: 100dvh;
     width: 100%;
 }
 
@@ -397,6 +399,7 @@ body {
 .sidebar {
     width: var(--sidebar-width);
     height: calc(100vh - var(--navbar-height));
+    height: calc(100dvh - var(--navbar-height));
     background: var(--bg-card);
     border-right: 1px solid var(--border);
     display: flex;
@@ -1116,6 +1119,16 @@ body.light-theme .custom-map-controls button {
     transform: scale(1.15);
 }
 
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
 /* ============================================================
    13. REKOMENDASI CARDS
    ============================================================ */
@@ -1273,6 +1286,7 @@ body.light-theme .custom-map-controls button {
 .admin-container {
     padding: 28px 32px;
     height: calc(100vh - var(--navbar-height));
+    height: calc(100dvh - var(--navbar-height));
     overflow-y: auto;
     max-width: 1040px;
     margin: 0 auto;
@@ -1737,6 +1751,7 @@ body.light-theme .search-dropdown-item:hover {
         width: var(--sidebar-width);
         max-width: 85vw;
         height: calc(100vh - var(--navbar-height));
+        height: calc(100dvh - var(--navbar-height));
         transform: translateX(-100%);
         transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         border-right: 1px solid var(--border);
@@ -2394,4 +2409,215 @@ body.light-theme .search-dropdown-item:hover {
     border-top: 1px solid var(--border);
     margin: 8px 0;
     width: 100%;
+}
+
+/* ============================================================
+   30. RESPONSIVE — MOBILE REFINEMENTS
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Status bar bawah peta: izinkan geser horizontal, jangan dipadatkan */
+    .map-status-bar {
+        overflow-x: auto;
+        scrollbar-width: none; /* Firefox */
+    }
+
+    .map-status-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .map-status-bar .status-item,
+    .map-status-bar .status-separator {
+        flex-shrink: 0;
+    }
+
+    /* Popup Leaflet jangan melebihi lebar layar */
+    .leaflet-popup-content {
+        max-width: min(78vw, 280px) !important;
+    }
+
+    /* ---- NAVBAR MENGAMBANG (floating pill) ---- */
+    .app-navbar {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        height: 52px;
+        padding: 0 8px 0 10px;
+        border: 1px solid var(--border-hover);
+        border-radius: 999px;
+        box-shadow: var(--shadow-lg);
+        gap: 6px;
+        background: var(--bg-card);
+    }
+
+    /* Peta full-bleed di belakang navbar mengambang */
+    .app-container {
+        padding-top: 0;
+    }
+
+    /* Logo cukup ikon saja agar ringkas & clean */
+    .brand-info {
+        display: none;
+    }
+
+    /* Tautan nav di tengah pill */
+    .nav-links {
+        margin-left: 0;
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* Halaman Data: beri ruang atas agar tak tertutup navbar mengambang */
+    .admin-container {
+        height: 100dvh;
+        padding-top: 80px;
+    }
+
+    /* Kartu rute & kontrol titik awal: turun ke bawah navbar mengambang */
+    .route-info-card,
+    .navigation-toast {
+        top: 78px;
+        max-width: calc(100% - 24px);
+    }
+
+    .route-origin-control {
+        top: 78px;
+    }
+}
+
+/* HP kecil: ringkaskan navbar agar tidak sesak */
+@media (max-width: 420px) {
+    /* Sembunyikan tombol notifikasi & pengaturan (placeholder, hemat ruang) */
+    .nav-right .nav-icon-btn[aria-label="Notifikasi"],
+    .nav-right .nav-icon-btn[aria-label="Pengaturan"] {
+        display: none;
+    }
+
+    .nav-right {
+        gap: 5px;
+    }
+
+    /* Sembunyikan nama "Admin" & panah, sisakan avatar saja */
+    .nav-user-profile .user-name,
+    .nav-user-profile svg {
+        display: none;
+    }
+
+    .nav-user-profile {
+        padding: 4px;
+    }
+
+    /* Status bar lebih ringkas di layar sangat sempit */
+    .map-status-bar {
+        gap: 10px;
+        padding: 0 12px;
+    }
+}
+
+/* ============================================================
+   31. RESPONSIVE — TABEL DATA JADI KARTU (mobile, tanpa scroll samping)
+   ============================================================ */
+@media (max-width: 640px) {
+    /* Matikan mode scroll horizontal dari aturan sebelumnya */
+    .table-container {
+        overflow-x: visible;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .table-search {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+
+    .table-search .form-input {
+        max-width: none;
+    }
+
+    /* Ubah tabel → daftar kartu */
+    .table-element,
+    .table-element tbody,
+    .table-element tr,
+    .table-element td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .table-element thead {
+        display: none;
+    }
+
+    .table-element tr {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 6px 14px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .table-element tr:hover td {
+        background: transparent;
+    }
+
+    .table-element td {
+        border: none;
+        border-bottom: 1px solid var(--border);
+        padding: 10px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: right;
+    }
+
+    .table-element td:last-child {
+        border-bottom: none;
+    }
+
+    /* Label kolom (dari atribut data-label) di sisi kiri tiap baris */
+    .table-element td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        text-align: left;
+    }
+
+    /* Sel Aksi: tombol Edit & Hapus full-width */
+    .table-element td.table-action-cell {
+        display: block;
+        padding-top: 12px;
+    }
+
+    .table-element td.table-action-cell::before {
+        display: none;
+    }
+
+    .table-element td.table-action-cell > div {
+        justify-content: stretch !important;
+    }
+
+    .table-element td.table-action-cell .action-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 9px;
+    }
+
+    /* Baris "data kosong" tetap rapi sebagai kartu */
+    .table-element td[colspan] {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .table-element td[colspan]::before {
+        display: none;
+    }
 }
