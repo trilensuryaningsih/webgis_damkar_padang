@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://damkar2.suralayateknik.com/api/:path*"
+      "destination": "https://be-aspas.onrender.com/api/:path*"
     }
   ]
 }

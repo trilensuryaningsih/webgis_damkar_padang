@@ -9,7 +9,7 @@ export default defineConfig({
     // supaya tidak kena CORS dari localhost (request diteruskan server-side).
     proxy: {
       '/api': {
-        target: 'https://damkar2.suralayateknik.com',
+        target: 'https://be-aspas.onrender.com',
         changeOrigin: true,
         secure: true,
       },
