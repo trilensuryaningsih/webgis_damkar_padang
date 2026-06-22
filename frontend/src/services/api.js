@@ -33,23 +33,79 @@ API.interceptors.response.use(
   },
 );
 
-export const getDamkar = (radius = 3000) =>
-  API.get("/damkar", { params: { radius } });
+// ============================================================
+// Cache + dedup untuk request GET (mempercepat tanpa ubah backend)
+//  - Cache: respons per (url+params) disimpan selama TTL, jadi mengulang
+//    radius yang sama tampil instan tanpa hit backend lagi.
+//  - Dedup: request GET identik yang sedang berjalan berbagi 1 promise,
+//    sehingga banyak komponen tidak menembak endpoint sama berkali-kali.
+//  - Invalidasi: cache dibersihkan saat ada perubahan data (POST/PUT/DELETE).
+// ============================================================
+const GET_CACHE_TTL = 5 * 60 * 1000; // 5 menit
+const getCache = new Map(); // key -> { ts, data }
+const inflight = new Map(); // key -> Promise
+
+const cacheKey = (url, params) => `${url}?${JSON.stringify(params || {})}`;
+
+function clearGetCache() {
+  getCache.clear();
+  inflight.clear();
+}
+
+function cachedGet(url, params) {
+  const key = cacheKey(url, params);
+
+  const hit = getCache.get(key);
+  if (hit && Date.now() - hit.ts < GET_CACHE_TTL) {
+    return Promise.resolve({ data: hit.data, fromCache: true });
+  }
+
+  if (inflight.has(key)) return inflight.get(key);
+
+  const req = API.get(url, { params })
+    .then((res) => {
+      getCache.set(key, { ts: Date.now(), data: res.data });
+      inflight.delete(key);
+      return res;
+    })
+    .catch((err) => {
+      inflight.delete(key);
+      throw err;
+    });
+
+  inflight.set(key, req);
+  return req;
+}
+
+export const getDamkar = (radius = 3000) => cachedGet("/damkar", { radius });
 export const getCoverage = (radius = 3000) =>
-  API.get("/coverage", { params: { radius } });
+  cachedGet("/coverage", { radius });
 export const getBlankspot = (radius = 3000) =>
-  API.get("/blankspot", { params: { radius } });
+  cachedGet("/blankspot", { radius });
 export const getRekomendasi = (radius = 3000) =>
-  API.get("/rekomendasi", { params: { radius } });
-export const getJalan = () => API.get("/jalan");
-export const getStats = (radius = 3000) =>
-  API.get("/stats", { params: { radius } });
+  cachedGet("/rekomendasi", { radius });
+export const getJalan = () => cachedGet("/jalan");
+export const getStats = (radius = 3000) => cachedGet("/stats", { radius });
 
 export const getDamkarList = (search = "", radius = 3000) =>
-  API.get("/damkar/list", { params: { search, radius } });
-export const getDamkarById = (id) => API.get(`/damkar/${id}`);
-export const createDamkar = (data) => API.post("/damkar", data);
-export const updateDamkar = (id, data) => API.put(`/damkar/${id}`, data);
-export const deleteDamkar = (id) => API.delete(`/damkar/${id}`);
+  cachedGet("/damkar/list", { search, radius });
+export const getDamkarById = (id) => cachedGet(`/damkar/${id}`);
+
+// Mutasi data → bersihkan cache agar data berikutnya selalu segar
+export const createDamkar = (data) =>
+  API.post("/damkar", data).then((res) => {
+    clearGetCache();
+    return res;
+  });
+export const updateDamkar = (id, data) =>
+  API.put(`/damkar/${id}`, data).then((res) => {
+    clearGetCache();
+    return res;
+  });
+export const deleteDamkar = (id) =>
+  API.delete(`/damkar/${id}`).then((res) => {
+    clearGetCache();
+    return res;
+  });
 
 export default API;
