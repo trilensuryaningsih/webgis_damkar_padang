@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || "/api";
+// Selalu pakai path relatif "/api". Request di-proxy ke backend oleh:
+//  - Vite (saat dev)        -> lihat vite.config.js
+//  - Vercel (saat produksi) -> lihat vercel.json
+// Dipaksa relatif (mengabaikan VITE_API_URL) supaya tidak kena CORS
+// tanpa perlu mengubah backend maupun env var di dashboard Vercel.
+const API_BASE_URL = "/api";
 
 const API = axios.create({
   baseURL: API_BASE_URL,
