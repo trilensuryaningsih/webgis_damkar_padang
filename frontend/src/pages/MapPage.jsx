@@ -9,6 +9,12 @@ import {
 } from "../components/Icons";
 import { getStats } from "../services/api";
 
+// Hapus awalan "Prioritas X - " dari nama rekomendasi
+const stripPrioritas = (nama) => {
+  if (!nama) return nama;
+  return nama.replace(/^Prioritas\s*\d+\s*[-–]\s*/i, "").trim();
+};
+
 const getCurrentPosition = () =>
   new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -40,7 +46,7 @@ const getRoutePoint = (feature, type) => {
   const label =
     type === "damkar"
       ? `Pos ${properties.no_pos} ${properties.nama_lokasi || ""}`.trim()
-      : properties.nama || `Rekomendasi ${properties.pos_ke || properties.id}`;
+      : stripPrioritas(properties.nama) || `Rekomendasi ${properties.pos_ke || properties.id}`;
 
   return {
     key: `${type}:${properties.id}`,
@@ -269,7 +275,7 @@ const MapPage = ({ refresh, theme }) => {
       setRouteMode("gps-to-rekomendasi");
       setRouteLabel(
         `Lokasi Saya ke ${
-          feature.properties.nama ||
+          stripPrioritas(feature.properties.nama) ||
           `Rekomendasi ${feature.properties.pos_ke || feature.properties.id}`
         }`,
       );

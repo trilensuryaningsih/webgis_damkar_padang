@@ -4,6 +4,12 @@ import L from "leaflet";
 import { getRekomendasi } from "../../services/api";
 import { IconClose, IconNavigation, IconPin } from "../Icons";
 
+// Hapus awalan "Prioritas X - " dan kembalikan hanya nama lokasi
+const stripPrioritas = (nama) => {
+  if (!nama) return nama;
+  return nama.replace(/^Prioritas\s*\d+\s*[-–]\s*/i, "").trim();
+};
+
 const createNumberedIcon = (number, isSelected = false) => {
   const size = isSelected ? 34 : 26;
   const glowIntensity = isSelected
@@ -183,15 +189,17 @@ const RekomendasiMarkers = ({
                       background: "linear-gradient(135deg,#10b981,#059669)",
                       color: "#fff",
                       borderRadius: "5px",
-                      padding: "1px 7px",
-                      fontSize: "10px",
+                      padding: "1px 8px",
+                      fontSize: "11px",
                       fontWeight: "800",
+                      letterSpacing: "-0.3px",
+                      minWidth: "20px",
+                      textAlign: "center",
                     }}
                   >
-                    <IconPin size={12} />
-                    Prioritas {p.pos_ke || p.id}
+                    {p.pos_ke || p.id}
                   </span>
-                  {p.nama}
+                  {stripPrioritas(p.nama)}
                 </h4>
 
                 <div

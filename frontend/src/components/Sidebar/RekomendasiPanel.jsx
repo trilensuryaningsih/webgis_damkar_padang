@@ -7,6 +7,12 @@ import {
   IconPin,
 } from "../Icons";
 
+// Hapus awalan "Prioritas X - " dan kembalikan hanya nama lokasi
+const stripPrioritas = (nama) => {
+  if (!nama) return nama;
+  return nama.replace(/^Prioritas\s*\d+\s*[-–]\s*/i, "").trim();
+};
+
 const RekomendasiPanel = ({
   refresh,
   radius = 3000,
@@ -253,15 +259,24 @@ const RekomendasiPanel = ({
                     }}
                     aria-expanded={isExpanded}
                   >
-                    <span className="rekomendasi-card-icon">
-                      <IconPin size={16} />
-                    </span>
+                  <span
+                    className="rekomendasi-card-icon"
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "800",
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      minWidth: "27px",
+                      letterSpacing: "-0.5px",
+                    }}
+                  >
+                    {p.pos_ke || p.id}
+                  </span>
 
                     {/* Content */}
                     <div className="rekomendasi-content" style={{ gap: "2px" }}>
                       <div className="rekomendasi-card-header">
                         <h4 className="rekomendasi-card-title">
-                          {p.nama}
+                          {stripPrioritas(p.nama)}
                         </h4>
                         <div className="pos-card-actions">
                           {isActive && (
