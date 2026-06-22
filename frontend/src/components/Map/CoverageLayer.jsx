@@ -48,6 +48,9 @@ const CoverageLayer = ({ radius }) => {
         fillOpacity: 0.22,
         weight: 1.5,
         dashArray: null,
+        // nonzero: cegah area lingkaran yang saling tumpang tindih jadi "bolong"
+        // (default Leaflet 'evenodd' membuat lubang di area overlap)
+        fillRule: "nonzero",
       }}
     />
   );
